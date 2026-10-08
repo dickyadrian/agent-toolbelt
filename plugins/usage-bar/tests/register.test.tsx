@@ -15,9 +15,17 @@ const CONTEXT = { window: 200_000 }
  * Stands in for the engine beneath the plugin: the session's usage, the
  * command registry, and the band the engine draws when the plugin passes.
  */
-const engine = (on: On, options: { rateLimits?: SessionRateLimit[]; store?: Record<string, unknown> } = {}) => {
+const engine = (
+  on: On,
+  options: {
+    rateLimits?: SessionRateLimit[]
+    store?: Record<string, unknown>
+    env?: Record<string, string>
+  } = {},
+) => {
   mock.clock(on, { now: NOW })
   mock.store(on, options.store)
+  mock.env(on, options.env ?? {})
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.usage', () => ({
     value: { startedAt: 0, context: CONTEXT, rateLimits: options.rateLimits ?? [] },
@@ -173,6 +181,56 @@ describe('/usage-bar', () => {
       const ui = await band($, surface)
       expect(await ui.find({ key: 'engine-band' })).toBeDefined()
       await ui.unmount()
+    }
+  })
+})
+
+describe('account badge', () => {
+  const WORK = { USAGE_BAR_BADGE: 'work', USAGE_BAR_BADGE_COLOR: 'warning' }
+
+  test('draws the label in its color beside the bars', async ($, on) => {
+    engine(on, { env: WORK })
+    await start($)
+    await measure($, [FIVE_HOUR, SEVEN_DAY])
+
+    for (const surface of SURFACES) {
+      const ui = await band($, surface)
+      const badge = await ui.find({ key: 'badge' })
+      expect(badge?.text).toBe(' work ')
+      expect((await ui.find({ type: 'Text', text: ' work ' }))?.props).toMatchObject({
+        inverse: true,
+        color: 'warning',
+      })
+      await ui.unmount()
+    }
+  })
+
+  test('is absent when no label is set', async ($, on) => {
+    engine(on)
+    await start($)
+    await measure($, [FIVE_HOUR])
+
+    for (const surface of SURFACES) {
+      const ui = await band($, surface)
+      expect(await ui.find({ key: 'badge' })).toBeUndefined()
+      await ui.unmount()
+    }
+  })
+
+  test('takes its width out of the room the bars have', async ($, on) => {
+    engine(on, { env: WORK })
+    await start($)
+    await measure($, [FIVE_HOUR, SEVEN_DAY])
+
+    for (const surface of SURFACES) {
+      // The bars need 79 cells on one row; the badge takes 7 more.
+      const wide = await band($, surface, { bodyColumns: 86 })
+      expect(await wide.find({ key: 'row-1' })).toBeUndefined()
+      await wide.unmount()
+
+      const narrow = await band($, surface, { bodyColumns: 85 })
+      expect(await narrow.find({ key: 'row-1' })).toBeDefined()
+      await narrow.unmount()
     }
   })
 })

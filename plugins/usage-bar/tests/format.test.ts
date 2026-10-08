@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { bar, colorOf, labelOf, layout, resetText, segmentWidth } from '../hooks/format'
+import { badgeOf, badgeWidth, bar, colorOf, labelOf, layout, resetText, segmentWidth } from '../hooks/format'
 
 // Local-time constructors keep the tests independent of the machine's time zone.
 const NOW = new Date(2026, 9, 8, 11, 0).getTime() // Thu 8 Oct 2026, 11:00am
@@ -132,5 +132,46 @@ describe('layout', () => {
   test('never shrinks the bar below 6 cells', () => {
     const segment = layout([fiveHour], 10, NOW)[0]?.[0]
     expect(segment!.bar).toHaveLength(6)
+  })
+})
+
+describe('badgeOf', () => {
+  test('is null when no label is set', () => {
+    expect(badgeOf(undefined, undefined)).toBeNull()
+    expect(badgeOf('', 'warning')).toBeNull()
+    expect(badgeOf('   ', 'warning')).toBeNull()
+  })
+
+  test('trims the label', () => {
+    expect(badgeOf('  work ', 'warning')).toEqual({ text: 'work', color: 'warning' })
+  })
+
+  test('cuts the label to 12 characters', () => {
+    expect(badgeOf('personal-account-x', 'warning')?.text).toBe('personal-acc')
+  })
+
+  test('takes a theme color name', () => {
+    expect(badgeOf('work', 'suggestion')?.color).toBe('suggestion')
+  })
+
+  test('takes a #rrggbb color', () => {
+    expect(badgeOf('work', '#ff8800')?.color).toBe('#ff8800')
+  })
+
+  test('falls back to claude for a missing or unknown color', () => {
+    expect(badgeOf('work', undefined)?.color).toBe('claude')
+    expect(badgeOf('work', 'orange')?.color).toBe('claude')
+    expect(badgeOf('work', '#ff88')?.color).toBe('claude')
+  })
+})
+
+describe('badgeWidth', () => {
+  test('is the padded label and the gap after it', () => {
+    // " work " + 1 cell gap before the bars
+    expect(badgeWidth({ text: 'work', color: 'warning' })).toBe(7)
+  })
+
+  test('is 0 without a badge', () => {
+    expect(badgeWidth(null)).toBe(0)
   })
 })

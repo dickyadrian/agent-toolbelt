@@ -1,6 +1,6 @@
-import type { ThemeKey } from 'claude-code'
+import type { Color, ThemeKey } from 'claude-code'
 
-import type { UsageWindow } from '../types'
+import type { Badge, UsageWindow } from '../types'
 
 /** One window as the band draws it: every piece already text. */
 export type Segment = {
@@ -131,3 +131,36 @@ export const layout = (windows: UsageWindow[], columns: number, now: number): Se
 
   return shown.map(({ percent, segment }) => [fit(segment, percent, columns)])
 }
+
+const BADGE_MAX_LENGTH = 12
+const BADGE_DEFAULT_COLOR: ThemeKey = 'claude'
+/** Cells between the badge and the bars. */
+export const BADGE_GAP = 1
+
+const THEME_KEYS: readonly string[] = [
+  'text', 'inverseText', 'inactive', 'subtle', 'suggestion', 'remember', 'success', 'error',
+  'warning', 'merged', 'claude', 'permission', 'planMode', 'autoAccept', 'promptBorder',
+  'bashBorder', 'ide', 'diffAdded', 'diffRemoved', 'diffAddedDimmed', 'diffRemovedDimmed',
+  'diffAddedWord', 'diffRemovedWord',
+] satisfies readonly ThemeKey[]
+
+const isColor = (value: string): boolean =>
+  THEME_KEYS.includes(value) || /^#[0-9a-fA-F]{6}$/.test(value)
+
+/**
+ * The account badge from its env values: null without a label; a color that
+ * is neither a theme name nor `#rrggbb` falls back so it cannot break the band.
+ */
+export const badgeOf = (label: string | undefined, color: string | undefined): Badge | null => {
+  const text = (label ?? '').trim().slice(0, BADGE_MAX_LENGTH)
+  if (text === '') {
+    return null
+  }
+  const shown: Color = color !== undefined && isColor(color) ? color : BADGE_DEFAULT_COLOR
+
+  return { text, color: shown }
+}
+
+/** Cells the badge takes from the band's row: ` work ` and the gap after it. */
+export const badgeWidth = (badge: Badge | null): number =>
+  badge === null ? 0 : badge.text.length + 2 + BADGE_GAP

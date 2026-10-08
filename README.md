@@ -16,6 +16,16 @@ Shows your subscription usage above the prompt, so you don't have to run `/usage
 - Bars turn yellow at 70% and red at 90%.
 - Once a window's reset time has passed, it shows 0% until the next reply brings fresh numbers.
 - `/usage-bar` hides or shows the band. Your choice is remembered across sessions.
+- Optional account badge, for when you run more than one Claude Code config. Set it per config in the `env` block of that config's `settings.json`:
+
+  ```json
+  "env": {
+    "USAGE_BAR_BADGE": "work",
+    "USAGE_BAR_BADGE_COLOR": "warning"
+  }
+  ```
+
+  `USAGE_BAR_BADGE` is the label, cut to 12 characters. No label means no badge. `USAGE_BAR_BADGE_COLOR` is a theme color name (`claude`, `suggestion`, `success`, `warning`, `error`, `planMode`, ...) or `#rrggbb`. Anything else falls back to `claude`.
 
 The numbers come from Claude's API responses, so the band appears after the first reply of a session. It only shows on a Claude subscription. With an API key there are no usage windows to show.
 

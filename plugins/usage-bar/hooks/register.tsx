@@ -2,10 +2,11 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { UsageWindow } from '../types'
-import { layout, SEGMENT_GAP } from './format'
+import { BADGE_GAP, badgeOf, badgeWidth, layout, SEGMENT_GAP } from './format'
 
 const windows = atom({ plugin: 'usage-bar', key: 'windows' } as const, [])
 const isHidden = atom({ plugin: 'usage-bar', key: 'isHidden' } as const, false)
+const badge = atom({ plugin: 'usage-bar', key: 'badge' } as const, null)
 
 const COMMAND = 'usage-bar'
 const HIDDEN_KEY = 'isHidden'
@@ -23,6 +24,9 @@ export const register: Register = on => {
     })
     const stored = (await $.store.get(HIDDEN_KEY)) === true
     await update($, isHidden, () => stored)
+    const label = await $.env.get('USAGE_BAR_BADGE')
+    const color = await $.env.get('USAGE_BAR_BADGE_COLOR')
+    await update($, badge, () => badgeOf(label, color))
     const { rateLimits } = await $.session.usage()
     await update($, windows, () => toWindows(rateLimits))
 
@@ -52,22 +56,31 @@ export const register: Register = on => {
     }
 
     const { Box, Text } = $.ui.resolve(e)
-    const rows = layout(shown, e.props.bodyColumns, await $.clock.now())
+    const account = await read($, badge)
+    const columns = e.props.bodyColumns - badgeWidth(account)
+    const rows = layout(shown, columns, await $.clock.now())
 
     return (
-      <Box flexDirection="column" marginTop={1}>
-        {rows.map((row, index) => (
-          <Box key={`row-${index}`} flexDirection="row" columnGap={SEGMENT_GAP}>
-            {row.map(segment => (
-              <Box key={`segment-${segment.kind}`} columnGap={1}>
-                <Text dimColor>{segment.label}</Text>
-                <Text color={segment.color}>{segment.bar}</Text>
-                <Text color={segment.color}>{segment.percent}</Text>
-                {segment.reset !== undefined && <Text dimColor>{` resets ${segment.reset}`}</Text>}
-              </Box>
-            ))}
+      <Box flexDirection="row" columnGap={BADGE_GAP} marginTop={1}>
+        {account !== null && (
+          <Box key="badge">
+            <Text inverse color={account.color}>{` ${account.text} `}</Text>
           </Box>
-        ))}
+        )}
+        <Box flexDirection="column">
+          {rows.map((row, index) => (
+            <Box key={`row-${index}`} flexDirection="row" columnGap={SEGMENT_GAP}>
+              {row.map(segment => (
+                <Box key={`segment-${segment.kind}`} columnGap={1}>
+                  <Text dimColor>{segment.label}</Text>
+                  <Text color={segment.color}>{segment.bar}</Text>
+                  <Text color={segment.color}>{segment.percent}</Text>
+                  {segment.reset !== undefined && <Text dimColor>{` resets ${segment.reset}`}</Text>}
+                </Box>
+              ))}
+            </Box>
+          ))}
+        </Box>
       </Box>
     )
   })
