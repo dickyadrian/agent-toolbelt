@@ -55,7 +55,7 @@ export const register: Register = on => {
     const rows = layout(shown, e.props.bodyColumns, await $.clock.now())
 
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" marginTop={1}>
         {rows.map((row, index) => (
           <Box key={`row-${index}`} flexDirection="row" columnGap={SEGMENT_GAP}>
             {row.map(segment => (

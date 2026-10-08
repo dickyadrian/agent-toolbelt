@@ -83,6 +83,18 @@ describe('band', () => {
     }
   })
 
+  test('keeps a blank line between the transcript and the band', async ($, on) => {
+    engine(on)
+    await start($)
+    await measure($, [FIVE_HOUR])
+
+    for (const surface of SURFACES) {
+      const ui = await band($, surface)
+      expect((await ui.find({ type: 'Box' }))?.props).toMatchObject({ marginTop: 1 })
+      await ui.unmount()
+    }
+  })
+
   test('draws one row per window when the band is narrow', async ($, on) => {
     engine(on)
     await start($)
