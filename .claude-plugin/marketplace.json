@@ -1,0 +1,11 @@
+{
+  "name": "claude-mod",
+  "owner": { "name": "Dicky Adrian" },
+  "plugins": [
+    {
+      "name": "usage-bar",
+      "source": "./plugins/usage-bar",
+      "description": "Subscription usage (5h and 7d windows) as progress bars above the prompt"
+    }
+  ]
+}
