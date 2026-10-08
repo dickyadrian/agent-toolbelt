@@ -2,5 +2,8 @@
   "name": "usage-bar",
   "version": "0.1.0",
   "description": "Subscription usage (5h and 7d windows) as progress bars above the prompt",
+  "author": {
+    "name": "Dicky Adrian"
+  },
   "types": "./types/index.d.ts"
 }

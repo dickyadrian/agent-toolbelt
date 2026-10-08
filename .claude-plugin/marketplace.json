@@ -1,6 +1,11 @@
 {
   "name": "claude-mod",
-  "owner": { "name": "Dicky Adrian" },
+  "owner": {
+    "name": "Dicky Adrian"
+  },
+  "metadata": {
+    "description": "Mods for Claude Code"
+  },
   "plugins": [
     {
       "name": "usage-bar",

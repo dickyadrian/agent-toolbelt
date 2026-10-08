@@ -72,7 +72,7 @@ describe('layout', () => {
   const both = [fiveHour, sevenDay]
 
   test('builds a full segment per window', () => {
-    const [[segment]] = layout([fiveHour], 200, NOW)
+    const segment = layout([fiveHour], 200, NOW)[0]?.[0]
     expect(segment).toEqual({
       kind: 'five_hour',
       label: '5h',
@@ -92,7 +92,7 @@ describe('layout', () => {
 
   test('shows 0% once the window has reset', () => {
     const stale = { kind: 'five_hour', percentUsed: 95, resetsAt: at(8, 10) }
-    const [[segment]] = layout([stale], 200, NOW)
+    const segment = layout([stale], 200, NOW)[0]?.[0]
     expect(segment!.percent).toBe('  0%')
     expect(segment!.color).toBe('success')
     expect(segment!.reset).toBeUndefined()
@@ -122,7 +122,7 @@ describe('layout', () => {
   })
 
   test('drops the reset text when the smallest bar still does not fit', () => {
-    const [[segment]] = layout([fiveHour], 20, NOW)
+    const segment = layout([fiveHour], 20, NOW)[0]?.[0]
     expect(segment!.reset).toBeUndefined()
     // The room the reset text gave back goes to the bar: 20 - "5h  48%" and spaces
     expect(segment!.bar).toHaveLength(12)
@@ -130,7 +130,7 @@ describe('layout', () => {
   })
 
   test('never shrinks the bar below 6 cells', () => {
-    const [[segment]] = layout([fiveHour], 10, NOW)
+    const segment = layout([fiveHour], 10, NOW)[0]?.[0]
     expect(segment!.bar).toHaveLength(6)
   })
 })
