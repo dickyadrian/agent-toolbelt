@@ -1,4 +1,4 @@
-# claude-mod
+# agent-toolbelt
 
 Mods for [Claude Code](https://claude.com/claude-code), published as a plugin marketplace. Each mod lives in its own folder under `plugins/` and installs on its own.
 
@@ -32,7 +32,7 @@ The numbers come from Claude's API responses, so the band appears after the firs
 Install:
 
 ```
-/plugin install usage-bar --marketplace <owner>/<repo>
+/plugin install usage-bar --marketplace dickyadrian/agent-toolbelt
 ```
 
 Answer `y` to add the marketplace, then pick a scope.
