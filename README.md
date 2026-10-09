@@ -2,6 +2,18 @@
 
 Mods for [Claude Code](https://claude.com/claude-code), published as a plugin marketplace. Each mod lives in its own folder under `plugins/` and installs on its own.
 
+## Install
+
+Install every mod:
+
+```
+/plugin install usage-bar --marketplace dickyadrian/agent-toolbelt
+/plugin install model-router --marketplace dickyadrian/agent-toolbelt
+/plugin install subagent-pane --marketplace dickyadrian/agent-toolbelt
+```
+
+The first command asks to add the marketplace: answer `y`. Each install then asks for a scope. To pick only some mods, run just their lines. Each mod's section below has its own command too.
+
 ## Mods
 
 ### usage-bar
