@@ -15,6 +15,10 @@ type World = {
   startedAt: number
   /** Resolves the Agent call the test engine holds open. */
   release: () => void
+  /** The model the API reports as having answered; the request's when unset. */
+  answeredBy?: string
+  /** While set, a request waits for it before answering. */
+  hold?: Promise<void>
 }
 
 /** Stands in for the engine beneath the plugin. */
@@ -51,6 +55,8 @@ const engine = (on: On): World => {
     return { deny: 'test engine runs no tool' }
   })
   on('turn.step', async function* ($, e) {
+    await world.hold
+
     return {
       turnId: e.turnId,
       index: e.index,
@@ -58,7 +64,7 @@ const engine = (on: On): World => {
       toolUses: [],
       stopReason: 'end_turn',
       usage: {
-        model: e.model,
+        model: world.answeredBy ?? e.model,
         input_tokens: 2000,
         output_tokens: 300,
         cache_read_input_tokens: 40_000,
@@ -67,6 +73,7 @@ const engine = (on: On): World => {
     }
   })
   on('turn.complete', ($, e) => ({ text: e.answer, usage: e.usage }))
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
   on('ui.open', ($, e) => {
     world.opened.push(e.id)
     world.panes = [{ id: e.id, title: e.title ?? e.id, isShown: true, isFocused: false, isPlaced: true }]
@@ -228,6 +235,66 @@ describe('recording', () => {
     const row = await drawn($, 'agent-a-tu1')
     expect(row).toContain('✓')
     expect(row).toContain('done 0s')
+  })
+})
+
+describe('fixes', () => {
+  test('shows the model that answered when a hook rewrote the request', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await spawn($, 'tu1')
+    world.answeredBy = 'claude-sonnet-4-5-20250929'
+    await step($, 'a-tu1')
+
+    expect(await drawn($, 'agent-a-tu1')).toContain('sonnet-4-5 · high')
+  })
+
+  test('shows a resumed agent as running while its first request is out', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await spawn($, 'tu1')
+    world.agents = [listed('a-tu1', 'completed')]
+    await world.clock.advance(2000)
+    let release = () => {}
+    world.hold = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const request = step($, 'a-tu1')
+    await world.clock.settle()
+
+    const row = await drawn($, 'agent-a-tu1')
+    expect(row).toContain('●')
+    expect(row).not.toContain('done')
+    release()
+    await request
+  })
+
+  test('/clear empties the pane and lets it open again', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await spawn($, 'tu1')
+    world.agents = [listed('a-tu1', 'completed')]
+    await world.clock.advance(2000)
+    await $.session.end({ reason: 'clear', sessionId: 'session-1', resume: { id: 'session-1' } })
+
+    expect(await drawn($, 'agent-a-tu1')).toBeUndefined()
+    expect(await drawn($, 'empty-none')).toContain('No subagents yet.')
+    await spawn($, 'tu2')
+    await world.clock.settle()
+    expect(world.opened).toEqual(['subagent-pane', 'subagent-pane'])
+  })
+
+  test('finishes an agent the list stops naming', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await spawn($, 'tu1')
+    world.agents = [listed('a-tu1', 'idle')]
+    await world.clock.advance(2000)
+    world.agents = []
+    await world.clock.advance(2000)
+
+    expect(await drawn($, 'agent-a-tu1')).toContain('done')
+    expect(await drawn($, 'empty-idle')).toContain('No subagents running.')
   })
 })
 

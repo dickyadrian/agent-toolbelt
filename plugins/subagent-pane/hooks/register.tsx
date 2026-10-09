@@ -79,6 +79,25 @@ const stopPolling = (poll: Poll) => {
   poll.timer = null
 }
 
+/**
+ * Marks a request's agent running before the request goes out, so a resumed agent
+ * leaves Recent at once. False when the loop is no agent the pane shows.
+ */
+const track = async ($: EngineInterface, poll: Poll, agentId: string, step: Step): Promise<boolean> => {
+  try {
+    const isKnown = (await read($, agents))[agentId] !== undefined
+    const info = isKnown ? undefined : (await $.agent.list()).find(agent => agent.id === agentId)
+    if (!isKnown && info === undefined) return false
+    await write($, poll, (rows, at) => withStep(info === undefined ? rows : withSpawn(rows, rowFromInfo(info, at)), agentId, step))
+
+    return true
+  } catch (error) {
+    $.ui.log(`could not record a request of subagent ${agentId}: ${messageOf(error)}`)
+
+    return false
+  }
+}
+
 /** Opens the pane on the session's first spawn; a /clear starts a new session. */
 const autoOpen = async ($: EngineInterface) => {
   const opened = await read($, autoOpenedAt)
@@ -138,23 +157,22 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e)) // never gate a spawn on this mod; next is replay-safe
 
   on('turn.step', async function* ($, e, next) {
-    const result = yield* next(e)
     const agentId = e.agentId
-    if (agentId === undefined) return result
+    const effort = e.effort === undefined ? {} : { effort: e.effort }
+    const isShown = agentId !== undefined && (await track($, poll, agentId, { model: e.model, ...effort }))
+    const result = yield* next(e)
+    if (agentId === undefined || !isShown) return result
     try {
       const usage = result.usage
+      // the model that answered, which a hook further in may have changed from the request's
       const step: Step = {
-        model: e.model,
-        ...(e.effort === undefined ? {} : { effort: e.effort }),
+        model: usage?.model ?? e.model,
+        ...effort,
         ...(usage === null
           ? {}
           : { contextTokens: usage.input_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens }),
       }
-      const isKnown = (await read($, agents))[agentId] !== undefined
-      const info = isKnown ? undefined : (await $.agent.list()).find(agent => agent.id === agentId)
-      if (isKnown || info !== undefined) {
-        await write($, poll, (rows, at) => withStep(info === undefined ? rows : withSpawn(rows, rowFromInfo(info, at)), agentId, step))
-      }
+      await write($, poll, (rows, at) => withStep(rows, agentId, step))
     } catch (error) {
       $.ui.log(`could not record a request of subagent ${agentId}: ${messageOf(error)}`)
     }
@@ -171,6 +189,21 @@ export const register: Register = on => {
       await write($, poll, (rows, at) => withTurnEnd(rows, agentId, listed, at))
     } catch (error) {
       $.ui.log(`could not record the end of subagent ${agentId}: ${messageOf(error)}`)
+    }
+
+    return result
+  })
+
+  // a /clear ends the conversation and starts no session.start: empty the pane
+  on('session.end', async ($, e, next) => {
+    const result = await next(e)
+    if (e.reason !== 'clear') return result
+    try {
+      stopPolling(poll)
+      await update($, agents, () => ({}))
+      await update($, autoOpenedAt, () => null)
+    } catch (error) {
+      $.ui.log(`could not empty the pane after /clear: ${messageOf(error)}`)
     }
 
     return result

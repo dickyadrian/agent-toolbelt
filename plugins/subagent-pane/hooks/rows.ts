@@ -40,11 +40,22 @@ export const withStep = (rows: AgentRows, id: string, step: Step): AgentRows => 
   }
 }
 
+/**
+ * Takes each listed agent's status. An agent the list named before and no longer
+ * names has ended; one it never named yet is left alone, as the list lags a spawn.
+ */
 export const withList = (rows: AgentRows, list: readonly AgentInfo[], now: number): AgentRows => {
   const next = { ...rows }
+  const listed = new Set<string>()
   for (const agent of list) {
+    listed.add(agent.id)
     const row = next[agent.id]
-    if (row !== undefined) next[agent.id] = withStatus(row, agent.status, now)
+    if (row !== undefined) next[agent.id] = { ...withStatus(row, agent.status, now), wasListed: true }
+  }
+  for (const [id, row] of Object.entries(next)) {
+    if (!listed.has(id) && row.wasListed === true && !isFinished(row.status)) {
+      next[id] = withStatus(row, 'completed', now)
+    }
   }
 
   return next

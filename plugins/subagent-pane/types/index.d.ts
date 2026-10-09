@@ -23,6 +23,8 @@ export type AgentRow = {
   startedAt: number
   /** Set while the status is completed, failed or killed. */
   endedAt?: number
+  /** Set once `$.agent.list()` has named the agent; one it drops after that has ended. */
+  wasListed?: true
 }
 
 /** The pane's rows, by agent id. */

@@ -98,6 +98,11 @@ describe('withList', () => {
     expect(after !== undefined && 'endedAt' in after).toBe(false)
   })
 
+  test('finishes an agent the list named before and has dropped', () => {
+    const seen = withList(rowsOf(row('a')), [info('a', 'idle')], 5000)
+    expect(withList(seen, [], 9000).a).toMatchObject({ status: 'completed', endedAt: 9000 })
+  })
+
   test('leaves an agent the list does not name as it was', () => {
     const before = rowsOf(row('a'))
     expect(withList(before, [], 9000).a).toEqual(row('a'))
