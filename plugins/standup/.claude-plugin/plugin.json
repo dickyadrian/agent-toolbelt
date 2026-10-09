@@ -1,0 +1,8 @@
+{
+  "name": "standup",
+  "version": "0.1.0",
+  "description": "Journals what you do in each session and drafts your daily standup with /standup",
+  "author": {
+    "name": "Dicky Adrian"
+  }
+}
