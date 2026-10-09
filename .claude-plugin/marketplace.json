@@ -21,6 +21,11 @@
       "name": "subagent-pane",
       "source": "./plugins/subagent-pane",
       "description": "A side pane listing each subagent with its model, effort, live context and run mode"
+    },
+    {
+      "name": "standup",
+      "source": "./plugins/standup",
+      "description": "Journals what you do in each session and drafts your daily standup with /standup"
     }
   ]
 }

@@ -10,6 +10,7 @@ Install every mod:
 /plugin install usage-bar --marketplace dickyadrian/agent-toolbelt
 /plugin install model-router --marketplace dickyadrian/agent-toolbelt
 /plugin install subagent-pane --marketplace dickyadrian/agent-toolbelt
+/plugin install standup --marketplace dickyadrian/agent-toolbelt
 ```
 
 The first command asks to add the marketplace: answer `y`. Each install then asks for a scope. To pick only some mods, run just their lines. Each mod's section below has its own command too.
@@ -120,6 +121,34 @@ Install:
 
 ```
 /plugin install subagent-pane --marketplace dickyadrian/agent-toolbelt
+```
+
+### standup
+
+Drafts your daily standup from what you did in Claude Code.
+
+```
+Standup (Yesterday = Thu 8 Oct)
+
+Yesterday
+- app: fixed the login bug
+Today
+- app: add a test for the login fix
+Blockers
+- none
+```
+
+- **What it records:** every turn you type adds a line to a journal: the time, the repo, the first 300 characters of your prompt, the files Claude edited, and the last 300 characters of its reply. Nothing calls a model while you work.
+- **Where:** each config keeps its own journal in `<config dir>/journal/` (`~/.claude/journal/`, or under `CLAUDE_CONFIG_DIR`), one folder per day. Days start at 4am, so late-night work counts toward the day before. Folders older than 14 days are deleted.
+- **`/standup`:** reads your last day with entries (Friday, on a Monday) and today so far. It adds your git commits from those days in the repos you worked in, and has Sonnet draft Yesterday, Today and Blockers for you to copy.
+- **If drafting fails:** you get the raw journal and commits instead.
+
+Prompts and reply endings are stored in plain text in your config folder, and are sent to the model only when you run `/standup`.
+
+Install:
+
+```
+/plugin install standup --marketplace dickyadrian/agent-toolbelt
 ```
 
 ## Developing
