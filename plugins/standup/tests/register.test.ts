@@ -107,8 +107,10 @@ const turn = async (
   for (const path of options.edits ?? []) {
     await $.tool.call({ tool: 'Edit', tool_use_id: `${turnId}:${path}`, file_path: path, old_string: 'a', new_string: 'b' })
   }
+  // the mod files edits by when they happen, not by which loop made them: a subagent's
+  // call during the turn reaches tool.call like the main loop's
   for (const path of options.subagentEdits ?? []) {
-    await $.tool.call({ tool: 'Write', tool_use_id: `${turnId}:sub:${path}`, file_path: path, content: 'x', agentId: 'agent-1' })
+    await $.tool.call({ tool: 'Write', tool_use_id: `${turnId}:sub:${path}`, file_path: path, content: 'x' })
   }
   await $.turn.complete({
     turnId,
@@ -185,7 +187,7 @@ describe('recording', () => {
     const world = engine(on)
     await start($)
     await turn($, world, 't1', 'start the agent')
-    await $.tool.call({ tool: 'Write', tool_use_id: 'late', file_path: `${REPO}/late.ts`, content: 'x', agentId: 'agent-1' })
+    await $.tool.call({ tool: 'Write', tool_use_id: 'late', file_path: `${REPO}/late.ts`, content: 'x' })
     await turn($, world, 't2', 'check its work')
 
     const lines = linesOf(world, journalOf(`${HOME}/.claude`, '2026-10-09'))
@@ -229,5 +231,78 @@ describe('retention', () => {
     expect(world.runs.filter(argv => argv[0] === 'rm')).toEqual([['rm', '-r', `${dir}/2026-09-24`]])
     expect(world.files.has(`${dir}/2026-09-25/s.jsonl`)).toBe(true)
     expect(world.files.has(`${dir}/notes/keep.md`)).toBe(true)
+  })
+})
+const runStandup = ($: Engine) =>
+  $.command.run({
+    command: 'standup',
+    args: '',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: false, columns: 120 },
+  })
+
+const line = (day: string, prompt: string) =>
+  `${JSON.stringify({ t: `${day}T15:00:00.000+07:00`, repo: '~/code/app', prompt, files: [], answer: 'Done.' })}\n`
+
+describe('/standup', () => {
+  test('drafts from the last working day with its commits', async ($, on) => {
+    const world = engine(on, {
+      now: at(9, 9),
+      files: {
+        [journalOf(`${HOME}/.claude`, '2026-10-08')]: line('2026-10-08', 'fix the login bug'),
+        [journalOf(`${HOME}/.claude`, '2026-10-09')]: line('2026-10-09', 'add a test for login'),
+      },
+    })
+    await start($)
+    const { text } = await runStandup($)
+
+    expect(text?.startsWith('Standup (Yesterday = Thu 8 Oct)\n\n')).toBe(true)
+    expect(text).toContain('- app: fixed the login bug')
+    expect(world.prompts[0]).toContain('abc1234 fix login')
+    expect(world.prompts[0]).toContain('fix the login bug')
+    expect(world.prompts[0]).toContain('add a test for login')
+  })
+
+  test('skips days without entries back to the last working day', async ($, on) => {
+    engine(on, {
+      now: at(5, 9),
+      files: { [journalOf(`${HOME}/.claude`, '2026-10-02')]: line('2026-10-02', 'ship the release') },
+    })
+    await start($)
+
+    expect((await runStandup($)).text?.startsWith('Standup (Yesterday = Fri 2 Oct)')).toBe(true)
+  })
+
+  test('prints the raw journal when the model gives no draft', async ($, on) => {
+    engine(on, {
+      now: at(9, 9),
+      reply: 'empty',
+      files: { [journalOf(`${HOME}/.claude`, '2026-10-08')]: line('2026-10-08', 'fix the login bug') },
+    })
+    await start($)
+    const { text } = await runStandup($)
+
+    expect(text?.split('\n')[0]).toBe('Could not draft with the model (empty-reply). Raw journal:')
+    expect(text).toContain('    commit abc1234 fix login')
+    expect(text).toContain('    - fix the login bug')
+  })
+
+  test('says so when the journal is empty, without a model call', async ($, on) => {
+    const world = engine(on, { now: at(9, 9) })
+    await start($)
+
+    expect((await runStandup($)).text).toBe('Nothing in the journal for the last 14 days.')
+    expect(world.prompts).toEqual([])
+  })
+
+  test("reads only this config's journal", async ($, on) => {
+    engine(on, {
+      now: at(9, 9),
+      configDir: `${HOME}/.claude-work`,
+      files: { [journalOf(`${HOME}/.claude`, '2026-10-08')]: line('2026-10-08', 'personal project') },
+    })
+    await start($)
+
+    expect((await runStandup($)).text).toBe('Nothing in the journal for the last 14 days.')
   })
 })
