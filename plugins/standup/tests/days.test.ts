@@ -35,6 +35,7 @@ describe('gitLogArgv', () => {
     expect(gitLogArgv('2026-10-09', 'me@example.com')).toEqual([
       'git',
       'log',
+      '--all',
       '--since=2026-10-09T04:00:00',
       '--until=2026-10-10T04:00:00',
       '--author=me@example.com',

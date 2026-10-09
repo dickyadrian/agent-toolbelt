@@ -22,7 +22,7 @@ const COMMAND = 'standup'
 const DRAFT_MODEL = 'sonnet'
 
 /** The turn being recorded: opened at turn.start, written at turn.complete. */
-type OpenTurn = { turnId: string; startedAt: number; prompt: string; files: string[] }
+type OpenTurn = { turnId: string; startedAt: number; prompt: string; files: string[]; followUps: string[] }
 
 /** What the hooks share for one load of the module. */
 type Journal = {
@@ -31,9 +31,26 @@ type Journal = {
   turn: OpenTurn | null
   /** Edits made while no typed turn ran (a background subagent's), for the next one. */
   pendingFiles: string[]
+  /** Prompts the person submitted that no turn or fold has claimed yet, oldest first. */
+  typed: string[]
 }
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
+/** Origins that are the person's own typing: at this terminal, or over Remote Control. */
+const TYPED_ORIGINS: ReadonlySet<string> = new Set(['composer', 'bridge'])
+
+/** How many unclaimed typed prompts are kept (one that starts no turn, like a local command, ages out). */
+const MAX_TYPED = 20
+
+/** Claims the oldest typed prompt that `text` carries; undefined when it carries none. */
+const claimTyped = (journal: Journal, text: string): string | undefined => {
+  const index = journal.typed.findIndex(typed => typed.trim() !== '' && text.includes(typed.trim()))
+  if (index === -1) return undefined
+  const [typed] = journal.typed.splice(index, 1)
+
+  return typed
+}
 
 const pathsOf = async ($: EngineInterface, journal: Journal) => {
   if (journal.paths === null) {
@@ -51,8 +68,15 @@ const repoOf = async ($: EngineInterface, journal: Journal, cwd: string) => {
   if (known !== undefined) return known
   let repo = cwd
   try {
-    const found = await $.process.run(['git', 'rev-parse', '--show-toplevel'], { cwd, timeoutMs: 5000 })
-    if (found.exitCode === 0 && found.stdout.trim() !== '') repo = found.stdout.trim()
+    // a worktree's common dir is the main tree's .git, so its work files under the project
+    const common = await $.process.run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd, timeoutMs: 5000 })
+    const gitDir = common.stdout.trim()
+    if (common.exitCode === 0 && gitDir.endsWith('/.git')) {
+      repo = gitDir.slice(0, -'/.git'.length)
+    } else {
+      const found = await $.process.run(['git', 'rev-parse', '--show-toplevel'], { cwd, timeoutMs: 5000 })
+      if (found.exitCode === 0 && found.stdout.trim() !== '') repo = found.stdout.trim()
+    }
   } catch {
     // no git: the cwd stands for the repo
   }
@@ -70,6 +94,7 @@ const record = async ($: EngineInterface, journal: Journal, turn: OpenTurn, answ
     prompt: turn.prompt,
     files: turn.files.map(file => shortenHome(file, home)),
     answer: tail(answer),
+    ...(turn.followUps.length === 0 ? {} : { followUps: turn.followUps }),
   }
   // the id changes after a /clear, which raises no session.start: read it per write
   const path = entryPath(configDir, workdayOf(turn.startedAt), await $.session.id())
@@ -170,7 +195,7 @@ const standup = async ($: EngineInterface, journal: Journal): Promise<string> =>
 }
 
 export const register: Register = on => {
-  const journal: Journal = { paths: null, repoByCwd: new Map(), turn: null, pendingFiles: [] }
+  const journal: Journal = { paths: null, repoByCwd: new Map(), turn: null, pendingFiles: [], typed: [] }
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: COMMAND, description: "Draft your standup from this config's journal" })
@@ -187,13 +212,26 @@ export const register: Register = on => {
     text: `Could not build the standup: ${next.error.message}`,
   }))
 
+  // the engine says who submitted a prompt here; turn.start carries no origin
+  on('prompt.submit', async ($, e, next) => {
+    const result = await next(e)
+    if (result.drop === undefined && TYPED_ORIGINS.has(e.origin.kind)) {
+      journal.typed.push(result.text)
+      journal.typed.splice(0, journal.typed.length - MAX_TYPED)
+    }
+
+    return result
+  }).catch(($, e, next) => next(e)) // never gate a prompt on the journal; next is replay-safe
+
   on('turn.start', async ($, e, next) => {
     try {
-      if (isSkipped(e.text)) {
+      const typed = isSkipped(e.text) ? undefined : claimTyped(journal, e.text)
+      if (typed === undefined) {
         journal.turn = null
       } else {
-        journal.turn = { turnId: e.turnId, startedAt: await $.clock.now(), prompt: head(e.text.trim()), files: journal.pendingFiles }
+        const files = journal.pendingFiles
         journal.pendingFiles = []
+        journal.turn = { turnId: e.turnId, startedAt: await $.clock.now(), prompt: head(typed.trim()), files, followUps: [] }
       }
     } catch (error) {
       journal.turn = null
@@ -213,6 +251,18 @@ export const register: Register = on => {
 
     return result
   }).catch(($, e, next) => next(e)) // never gate a tool call on the journal; next is replay-safe
+
+  // a prompt typed mid-turn and folded into it starts no turn of its own
+  on('session.append', { door: 'delivery' }, async ($, e, next) => {
+    const result = await next(e)
+    if (e.agentId === undefined && journal.turn !== null && TYPED_ORIGINS.has(e.origin.kind)) {
+      const text = e.message.content.map(block => (block.type === 'text' ? block.text : '')).join('\n')
+      const typed = claimTyped(journal, text)
+      if (typed !== undefined) journal.turn.followUps.push(head(typed.trim()))
+    }
+
+    return result
+  }).catch(($, e, next) => next(e)) // never gate a stored row on the journal; next is replay-safe
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)

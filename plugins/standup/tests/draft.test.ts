@@ -48,6 +48,14 @@ describe('draftPrompt', () => {
   })
 })
 
+describe('follow-ups', () => {
+  test('show under their turn in the prompt and the raw listing', () => {
+    const day: DayInput = { day: '2026-10-08', entries: [entry({ followUps: ['also update the README'] })], commits: {} }
+    expect(draftPrompt(day, TODAY)).toContain('  also asked: also update the README')
+    expect(rawListing([day], 'x')).toContain('    - also update the README')
+  })
+})
+
 describe('DRAFT_SYSTEM', () => {
   test('asks for the three sections and forbids invented work', () => {
     expect(DRAFT_SYSTEM).toContain('Yesterday, Today, Blockers')

@@ -40,6 +40,7 @@ const dayBlock = (title: string, input: DayInput): string => {
     if (commits.length > 0) lines.push('Commits:', ...commits.map(commit => `- ${commit}`))
     for (const entry of input.entries.filter(one => one.repo === repo)) {
       lines.push(`- [${entry.t.slice(11, 16)}] prompt: ${entry.prompt}`)
+      for (const more of entry.followUps ?? []) lines.push(`  also asked: ${more}`)
       if (entry.files.length > 0) lines.push(`  files: ${entry.files.join(', ')}`)
       if (entry.answer !== '') lines.push(`  answer ends: ${entry.answer}`)
     }
@@ -65,7 +66,9 @@ export const rawListing = (days: readonly DayInput[], reason: string): string =>
     for (const repo of reposOf(input)) {
       lines.push(`  ${repoName(repo)}`)
       for (const commit of input.commits[repo] ?? []) lines.push(`    commit ${commit}`)
-      for (const entry of input.entries.filter(one => one.repo === repo)) lines.push(`    - ${entry.prompt}`)
+      for (const entry of input.entries.filter(one => one.repo === repo)) {
+        for (const prompt of [entry.prompt, ...(entry.followUps ?? [])]) lines.push(`    - ${prompt}`)
+      }
     }
   }
 

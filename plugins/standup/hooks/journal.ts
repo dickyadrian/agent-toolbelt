@@ -1,5 +1,5 @@
-/** One typed turn as the journal keeps it: one JSON line. */
-export type Entry = { t: string; repo: string; prompt: string; files: string[]; answer: string }
+/** One typed turn as the journal keeps it: one JSON line. `followUps`: prompts typed while it ran, folded into it. */
+export type Entry = { t: string; repo: string; prompt: string; files: string[]; answer: string; followUps?: string[] }
 
 /** How much of a prompt (its start) and of a reply (its end) is kept. */
 export const TEXT_CHARS = 300
@@ -75,7 +75,9 @@ const isEntry = (value: unknown): value is Entry => {
     typeof entry.prompt === 'string' &&
     typeof entry.answer === 'string' &&
     Array.isArray(entry.files) &&
-    entry.files.every(file => typeof file === 'string')
+    entry.files.every(file => typeof file === 'string') &&
+    (entry.followUps === undefined ||
+      (Array.isArray(entry.followUps) && entry.followUps.every(text => typeof text === 'string')))
   )
 }
 

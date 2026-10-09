@@ -40,11 +40,12 @@ export const candidateDays = (today: string, names: readonly string[]): string[]
 export const expiredDays = (today: string, names: readonly string[]): string[] =>
   names.filter(name => DAY_NAME.test(name) && daysBetween(name, today) > RETENTION_DAYS)
 
-/** `git log` over one workday (4am to 4am), the person's own commits, as `<hash> <subject>`. */
+/** `git log` over one workday (4am to 4am), the person's own commits on any branch, as `<hash> <subject>`. */
 export const gitLogArgv = (day: string, email: string): string[] => {
   const start = `T${pad(WORKDAY_START_HOUR)}:00:00`
 
-  return ['git', 'log', `--since=${day}${start}`, `--until=${addDays(day, 1)}${start}`, `--author=${email}`, '--format=%h %s']
+  // --all: a day's work may sit on a branch that isn't checked out any more
+  return ['git', 'log', '--all', `--since=${day}${start}`, `--until=${addDays(day, 1)}${start}`, `--author=${email}`, '--format=%h %s']
 }
 
 /** `Fri 9 Oct`. */

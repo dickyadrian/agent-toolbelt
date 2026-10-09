@@ -16,7 +16,7 @@ const TURN_USAGE: TurnUsage = {
 const MODEL_USAGE = { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 const DRAFT = 'Yesterday\n- app: fixed the login bug\nToday\n- app: add a test\nBlockers\n- none'
 
-type World = { clock: MockClock; files: Map<string, string>; runs: string[][]; prompts: string[] }
+type World = { clock: MockClock; files: Map<string, string>; runs: string[][]; prompts: string[]; cwd: string }
 
 /** Stands in for the engine beneath the plugin: env, session, an in-memory disk, git, and the model. */
 const engine = (
@@ -28,11 +28,13 @@ const engine = (
     files: new Map(Object.entries(options.files ?? {})),
     runs: [],
     prompts: [],
+    cwd: REPO,
   }
   mock.env(on, options.configDir === undefined ? { HOME } : { HOME, CLAUDE_CONFIG_DIR: options.configDir })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.id', () => ({ value: 'session-1' }))
-  on('session.cwd', () => ({ value: REPO }))
+  on('session.cwd', () => ({ value: world.cwd }))
+  on('prompt.submit', ($, e) => ({ text: e.text, origin: e.origin }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('turn.start', ($, e) => ({ turnId: e.turnId }))
   on('turn.complete', ($, e) => ({ text: e.answer, usage: e.usage }))
@@ -66,10 +68,13 @@ const engine = (
     const result = (exitCode: number, stdout: string) => ({
       value: { exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
     })
-    if (argv[0] === 'git' && argv[1] === 'rev-parse') return result(0, `${REPO}\n`)
+    if (argv[0] === 'git' && argv[1] === 'rev-parse') {
+      // a worktree's top level is its own folder; its common dir is the main tree's .git
+      return result(0, argv.includes('--git-common-dir') ? `${REPO}/.git\n` : `${world.cwd}\n`)
+    }
     if (argv[0] === 'git' && argv[1] === 'config') return result(0, 'me@example.com\n')
     if (argv[0] === 'git' && argv[1] === 'log') {
-      return result(0, argv[2] === '--since=2026-10-08T04:00:00' ? 'abc1234 fix login\n' : '')
+      return result(0, argv.includes('--since=2026-10-08T04:00:00') ? 'abc1234 fix login\n' : '')
     }
     if (argv[0] === 'rm') {
       const dir = argv[2] ?? ''
@@ -103,6 +108,7 @@ const turn = async (
   text: string,
   options: { edits?: string[]; subagentEdits?: string[]; answer?: string } = {},
 ) => {
+  await $.prompt.submit({ text, origin: { kind: 'composer' }, wait: false })
   await $.turn.start({ text, turnId })
   for (const path of options.edits ?? []) {
     await $.tool.call({ tool: 'Edit', tool_use_id: `${turnId}:${path}`, file_path: path, old_string: 'a', new_string: 'b' })
@@ -213,6 +219,47 @@ describe('recording', () => {
     expect(String(entry?.prompt).length).toBe(300)
     expect(String(entry?.answer).length).toBe(300)
     expect(String(entry?.answer).endsWith('END')).toBe(true)
+  })
+})
+
+describe('typed prompts', () => {
+  test('writes nothing for a turn a scheduled prompt started', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await $.prompt.submit({ text: 'check the deploy', origin: { kind: 'scheduled-trigger' }, wait: false })
+    await $.turn.start({ text: 'check the deploy', turnId: 't1' })
+    await $.turn.complete({ turnId: 't1', answer: 'Deployed.', durationMs: 1000, isAborted: false, reason: 'answer', usage: TURN_USAGE })
+
+    expect(world.files.has(journalOf(`${HOME}/.claude`, '2026-10-09'))).toBe(false)
+  })
+
+  test('adds a prompt typed mid-turn to the running turn', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await $.prompt.submit({ text: 'fix the login bug', origin: { kind: 'composer' }, wait: false })
+    await $.turn.start({ text: 'fix the login bug', turnId: 't1' })
+    await $.prompt.submit({ text: 'also update the README', origin: { kind: 'composer' }, wait: false, turnId: 't1' })
+    await $.session.append({
+      message: { type: 'user', role: 'user', content: [{ type: 'text', text: 'also update the README' }] },
+      door: 'delivery',
+      origin: { kind: 'composer' },
+      uuid: 'row-1',
+    })
+    await $.turn.complete({ turnId: 't1', answer: 'Done.', durationMs: 1000, isAborted: false, reason: 'answer', usage: TURN_USAGE })
+
+    expect(linesOf(world, journalOf(`${HOME}/.claude`, '2026-10-09'))[0]).toMatchObject({
+      prompt: 'fix the login bug',
+      followUps: ['also update the README'],
+    })
+  })
+
+  test("files a worktree's turns under its main repo", async ($, on) => {
+    const world = engine(on)
+    world.cwd = `${REPO}/.claude/worktrees/feature`
+    await start($)
+    await turn($, world, 't1', 'build the feature')
+
+    expect(linesOf(world, journalOf(`${HOME}/.claude`, '2026-10-09'))[0]?.repo).toBe('~/code/app')
   })
 })
 
