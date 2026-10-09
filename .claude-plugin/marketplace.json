@@ -11,6 +11,11 @@
       "name": "usage-bar",
       "source": "./plugins/usage-bar",
       "description": "Subscription usage (5h and 7d windows) as progress bars above the prompt"
+    },
+    {
+      "name": "model-router",
+      "source": "./plugins/model-router",
+      "description": "Logs how hard each prompt is and what every turn costs, to measure whether routing easy prompts to a cheaper model would pay off"
     }
   ]
 }

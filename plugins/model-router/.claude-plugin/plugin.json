@@ -1,0 +1,8 @@
+{
+  "name": "model-router",
+  "version": "0.1.0",
+  "description": "Logs how hard each prompt is and what every turn costs, to measure whether routing easy prompts to a cheaper model would pay off",
+  "author": {
+    "name": "Dicky Adrian"
+  }
+}

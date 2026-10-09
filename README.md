@@ -37,6 +37,50 @@ Install:
 
 Answer `y` to add the marketplace, then pick a scope.
 
+### model-router
+
+> [!WARNING]
+> Still in testing. It only measures for now, and its classifier, its log format and the report can change between versions without a migration. Use it to collect data, not to make routing decisions yet.
+
+Phase 1 of a model router: it measures, it doesn't route. Nothing changes which model answers. It answers one question: how much of your quota goes to prompts a cheaper model could have handled?
+
+- Every prompt you send is tagged `trivial`, `normal` or `hard` in the background, so the turn never waits for it. The classifier sees the prompt (first 1000 characters) and the end of the previous reply (last 500), so a "yes, do it" is judged by the work it approves.
+- Every turn is written to `~/.claude/model-router/turns/<session>/<turn>.json`: the prompt (first 500 characters), its tag, the 5h/7d quota before and after, and each model request's model, effort and token counts. Subagent runs get their own file, with their agent type and the main turn they ran under.
+- The classifier is TypeSafe's Jev (`typesafe-ai/jev`), a decision model, through Vercel AI Gateway. It answers one choice question over the three tiers and gives the probability of each, which goes in the record. Without Jev, Claude Code's built-in classifier (Haiku) tags prompts instead.
+- Jev never holds up a turn. If it fails (error status, an answer that isn't a tier, no answer within 5 seconds), the built-in classifier takes over, the record says why in `jevError`, and the first failure of a session shows a toast.
+
+Configure Jev in the `env` block of `settings.json`:
+
+```json
+"env": {
+  "MODEL_ROUTER_JEV_KEY": "<your AI Gateway key>",
+  "MODEL_ROUTER_JEV": "on",
+  "MODEL_ROUTER_JEV_ZERO_RETENTION": "off"
+}
+```
+
+- `MODEL_ROUTER_JEV_KEY`: an AI Gateway API key (`vercel ai-gateway api-keys create`). Jev is used only when it's set.
+- `MODEL_ROUTER_JEV`: `on` (the default) or `off`. Turns Jev off without removing the key.
+- `MODEL_ROUTER_JEV_ZERO_RETENTION`: `on` or `off` (the default). On, every request requires zero data retention. If the gateway can't guarantee it, the request fails and the built-in classifier tags the prompt; the toast and `jevError` say so. The record's `zeroRetention` field says which way each prompt was sent.
+
+Values `true`/`false`, `1`/`0` and `yes`/`no` work too. With Jev off, every prompt goes to the built-in classifier, which counts toward your Claude usage.
+
+Prompt text is sent to the classifier and kept in the log files. Don't use it in sessions where that's not okay.
+
+`/model-router report` reads every log file and shows:
+
+- prompts, weighted tokens and 5h/7d quota points by tier. Weighted tokens count output 5x, cache writes 1.25x and cache reads 0.1x, as the API prices them. A subagent run's tokens count toward the prompt that started it.
+- which classifier tagged the prompts, and the most common reasons Jev failed
+- how sure Jev was about the prompts it tagged trivial, in probability bands
+- whether there's enough data for phase 2 yet (300 prompts, 50 of them trivial, 7 days), and whether trivial prompts take enough of your tokens (15% or more) to be worth routing
+- ten prompts tagged trivial, picked at random, for you to check by hand
+
+Install:
+
+```
+/plugin install model-router --marketplace dickyadrian/agent-toolbelt
+```
+
 ## Developing
 
 Run a mod from this checkout with hot reload:
