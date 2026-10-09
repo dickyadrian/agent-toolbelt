@@ -16,6 +16,11 @@
       "name": "model-router",
       "source": "./plugins/model-router",
       "description": "Logs how hard each prompt is and what every turn costs, to measure whether routing easy prompts to a cheaper model would pay off"
+    },
+    {
+      "name": "subagent-pane",
+      "source": "./plugins/subagent-pane",
+      "description": "A side pane listing each subagent with its model, effort, live context and run mode"
     }
   ]
 }

@@ -81,6 +81,35 @@ Install:
 /plugin install model-router --marketplace dickyadrian/agent-toolbelt
 ```
 
+### subagent-pane
+
+A side pane that lists your subagents and what each one runs on, so you can check that the model you asked for is the one doing the work.
+
+```
+Subagents · 2 running
+● refactor auth module              12m
+  opus-5-5 · high · ctx 142k
+  bg · worktree · @auth
+● migrate test fixtures              4m
+  sonnet-4-5 · medium · ctx 61k · bg
+
+Recent
+✓ find callers of parseToken     done 1m
+  haiku-4-5 · low · ctx 22k
+```
+
+- One row per subagent, foreground and background: its task, how long it has run, its model, its effort, and how big its context is right now (the input tokens of its last request).
+- Badges show only when they apply: `bg` (runs in the background), `worktree` (its own git worktree), `cwd <dir>` (a different directory), `@name` (the name SendMessage reaches it by).
+- Finished agents move to `Recent`, dimmed. The last 10 are kept.
+- The agent whose transcript you have open is marked with `▶`.
+- The pane opens by itself on the first subagent of a session. In fullscreen it docks beside the transcript. On a narrow terminal, it waits until there's room. `/subagents-pane` shows or hides it. Once you close it, it stays closed until the next session or `/clear`.
+
+Install:
+
+```
+/plugin install subagent-pane --marketplace dickyadrian/agent-toolbelt
+```
+
 ## Developing
 
 Run a mod from this checkout with hot reload:
