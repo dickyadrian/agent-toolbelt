@@ -267,3 +267,128 @@ describe('poll', () => {
     expect(await drawn($, 'agent-a-tu2')).toBeDefined()
   })
 })
+
+const toggle = ($: Engine) =>
+  $.command.run({
+    command: 'subagents-pane',
+    args: '',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: true, columns: 200 },
+  })
+
+describe('pane', () => {
+  test('shows the empty state before any subagent', async ($, on) => {
+    engine(on)
+    await start($)
+    const ui = await pane($)
+
+    const empty = (await ui.find({ key: 'empty-none' }))?.text
+    expect(empty).toContain('No subagents yet.')
+    expect(empty).toContain('/subagents-pane to close')
+    await ui.unmount()
+  })
+
+  test('draws a running agent with its facts', async ($, on) => {
+    engine(on)
+    await start($)
+    await spawn($, 'tu1', { background: true, name: 'auth' })
+    await step($, 'a-tu1', 'high')
+    const ui = await pane($)
+
+    expect(await ui.find({ type: 'Text', text: /Subagents · 1 running/ })).toBeDefined()
+    const agent = (await ui.find({ key: 'agent-a-tu1' }))?.text
+    expect(agent).toContain('refactor auth module')
+    expect(agent).toContain('0s')
+    expect(agent).toContain('opus-5-5 · high · ctx 42k · bg · @auth')
+    expect(await ui.find({ key: 'empty-none' })).toBeUndefined()
+    expect(await ui.find({ key: 'empty-idle' })).toBeUndefined()
+    await ui.unmount()
+  })
+
+  test('counts elapsed time while the agent runs', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await spawn($, 'tu1')
+    world.agents = [listed('a-tu1', 'running')]
+    await world.clock.advance(62_000)
+    const ui = await pane($)
+
+    expect((await ui.find({ key: 'agent-a-tu1' }))?.text).toContain('1m')
+    await ui.unmount()
+  })
+
+  test('moves a finished agent under Recent and says nothing runs', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await spawn($, 'tu1')
+    world.agents = [listed('a-tu1', 'completed')]
+    await world.clock.advance(2000)
+    const ui = await pane($)
+
+    expect((await ui.find({ key: 'empty-idle' }))?.text).toContain('No subagents running.')
+    const recent = (await ui.find({ key: 'recent' }))?.text
+    expect(recent).toContain('Recent')
+    expect(recent).toContain('refactor auth module')
+    expect(recent).toContain('done 2s')
+    await ui.unmount()
+  })
+
+  test('highlights the agent whose transcript is in view', async ($, on) => {
+    engine(on)
+    await start($)
+    await spawn($, 'tu1')
+    await spawn($, 'tu2', { description: 'migrate test fixtures' })
+    const ui = await pane($, { agentId: 'a-tu2' })
+
+    expect((await ui.find({ key: 'agent-a-tu2' }))?.text).toContain('▶')
+    expect((await ui.find({ key: 'agent-a-tu1' }))?.text).not.toContain('▶')
+    await ui.unmount()
+  })
+
+  test('fits a narrow pane without failing', async ($, on) => {
+    engine(on)
+    await start($)
+    await spawn($, 'tu1', { cwd: '/repo/a-very-long-directory-name' })
+    const ui = await pane($, { bodyColumns: 8 })
+
+    expect(await ui.find({ key: 'agent-a-tu1' })).toBeDefined()
+    await ui.unmount()
+  })
+})
+
+describe('opening', () => {
+  test('opens the pane on the first spawn only', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await spawn($, 'tu1')
+    await world.clock.settle()
+    expect(world.opened).toEqual(['subagent-pane'])
+
+    world.panes = [] // the person closed it
+    await spawn($, 'tu2')
+    await world.clock.settle()
+    expect(world.opened).toEqual(['subagent-pane'])
+  })
+
+  test('opens again on the first spawn after a /clear', async ($, on) => {
+    const world = engine(on)
+    await start($)
+    await spawn($, 'tu1')
+    await world.clock.advance(5000)
+    world.startedAt = NOW + 5000
+    await spawn($, 'tu2')
+    await world.clock.settle()
+
+    expect(world.opened).toEqual(['subagent-pane', 'subagent-pane'])
+  })
+
+  test('/subagents-pane opens, then closes the pane', async ($, on) => {
+    const world = engine(on)
+    await start($)
+
+    expect((await toggle($)).text).toBe('Subagents pane opened.')
+    expect(world.opened).toEqual(['subagent-pane'])
+    expect((await toggle($)).text).toBe('Subagents pane closed.')
+    expect(world.closed).toEqual(['subagent-pane'])
+  })
+})

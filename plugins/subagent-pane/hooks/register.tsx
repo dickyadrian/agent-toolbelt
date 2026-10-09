@@ -17,11 +17,13 @@ import {
 } from './rows'
 
 const PANE = 'subagent-pane'
+const TITLE = 'Subagents'
 const COMMAND = 'subagents-pane'
 const POLL_MS = 2000
 
 const agents = atom({ plugin: 'subagent-pane', key: 'agents' } as const, {})
 const now = atom({ plugin: 'subagent-pane', key: 'now' } as const, 0)
+const autoOpenedAt = atom({ plugin: 'subagent-pane', key: 'autoOpenedAt' } as const, null)
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
@@ -77,17 +79,38 @@ const stopPolling = (poll: Poll) => {
   poll.timer = null
 }
 
+/** Opens the pane on the session's first spawn; a /clear starts a new session. */
+const autoOpen = async ($: EngineInterface) => {
+  const opened = await read($, autoOpenedAt)
+  if (opened !== null && opened >= (await sessionStartedAt($))) return
+  const at = await $.clock.now()
+  await update($, autoOpenedAt, () => at)
+  void $.ui.open({ id: PANE, title: TITLE }).catch(error => $.ui.log(`could not open the pane: ${messageOf(error)}`))
+}
+
 export const register: Register = on => {
   /** Agent tool_use_ids whose call asked for `isolation: "worktree"`, until the call returns. */
   const worktreeCalls = new Set<string>()
   const poll: Poll = { timer: null }
 
   on('session.start', async ($, e, next) => {
+    await $.command.register({ name: COMMAND, description: 'Show or hide the subagents pane' })
     // a hot reload mid-run starts the poll again
     if (hasActive(await read($, agents))) startPoll($, poll)
 
     return next(e)
   })
+
+  on('command.run', { command: COMMAND }, async $ => {
+    if ((await $.ui.panes()).some(pane => pane.id === PANE)) {
+      await $.ui.close({ id: PANE })
+
+      return { text: 'Subagents pane closed.' }
+    }
+    await $.ui.open({ id: PANE, title: TITLE })
+
+    return { text: 'Subagents pane opened.' }
+  }).catch(($, e, next) => ({ text: `Could not toggle the subagents pane: ${next.error.message}` }))
 
   on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
     const id = e.tool_use_id
@@ -106,6 +129,7 @@ export const register: Register = on => {
     try {
       const isWorktree = worktreeCalls.has(e.tool_use_id)
       await write($, poll, (rows, at) => withSpawn(rows, rowOfSpawn(e, agentId, result.model, isWorktree, at)))
+      await autoOpen($)
     } catch (error) {
       $.ui.log(`could not record subagent ${agentId}: ${messageOf(error)}`)
     }
