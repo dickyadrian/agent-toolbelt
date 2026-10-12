@@ -11,6 +11,7 @@ Install every mod:
 /plugin install model-router --marketplace dickyadrian/agent-toolbelt
 /plugin install subagent-pane --marketplace dickyadrian/agent-toolbelt
 /plugin install standup --marketplace dickyadrian/agent-toolbelt
+/plugin install context-gauge --marketplace dickyadrian/agent-toolbelt
 ```
 
 The first command asks to add the marketplace: answer `y`. Each install then asks for a scope. To pick only some mods, run just their lines. Each mod's section below has its own command too.
@@ -29,6 +30,7 @@ Shows your subscription usage above the prompt, so you don't have to run `/usage
 - Bars turn yellow at 70% and red at 90%.
 - Once a window's reset time has passed, it shows 0% until the next reply brings fresh numbers.
 - `/usage-bar` hides or shows the band. Your choice is remembered across sessions.
+- Shares the band with other band mods, such as context-gauge: its rows come first, theirs under it.
 - Optional account badge, for when you run more than one Claude Code config. Set it per config in the `env` block of that config's `settings.json`:
 
   ```json
@@ -149,6 +151,38 @@ Install:
 
 ```
 /plugin install standup --marketplace dickyadrian/agent-toolbelt
+```
+
+### context-gauge
+
+Shows how full the context window is, once it's full enough to matter, so you can see autocompact coming and what's taking the space.
+
+```
+ctx ▓▓████████████·····┃░░░░  62%  setup 21k · chat 98k · 38k to compact
+```
+
+- Hidden until context passes a threshold: 50% of the way to autocompact by default.
+- `▓` is setup (system prompt, tools, MCP, agents, skills, memory) and `█` is the conversation. `┃` marks where autocompact runs, and `░` is the reserve after it.
+- The label, marker and percent turn yellow at 80% and red at 90%.
+- On a narrow terminal it drops the setup/chat split first, then the tail, then shortens the bar.
+- With usage-bar installed, the context row sits under the usage row.
+- Follows the main conversation only; subagents don't move it.
+- `/context-gauge` hides or shows the row. Your choice is remembered across sessions.
+
+Set the threshold (1-100) in the plugin's options in the config menu, or in `settings.json`:
+
+```json
+"pluginConfigs": {
+  "context-gauge@agent-toolbelt": { "options": { "threshold": 70 } }
+}
+```
+
+The numbers are Claude Code's own `/context` estimate, read locally after each step. Nothing extra is sent anywhere.
+
+Install:
+
+```
+/plugin install context-gauge --marketplace dickyadrian/agent-toolbelt
 ```
 
 ## Developing

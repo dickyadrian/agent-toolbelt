@@ -26,6 +26,11 @@
       "name": "standup",
       "source": "./plugins/standup",
       "description": "Journals what you do in each session and drafts your daily standup with /standup"
+    },
+    {
+      "name": "context-gauge",
+      "source": "./plugins/context-gauge",
+      "description": "How full the context window is, split into setup and chat, above the prompt once it passes a threshold"
     }
   ]
 }
