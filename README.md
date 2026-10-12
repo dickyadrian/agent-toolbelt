@@ -207,3 +207,7 @@ claude plugin test ./plugins/usage-bar
 3. Add a section to this README.
 
 Each mod has to be self-contained. An install copies only that mod's folder, so a mod can't import code from another mod or from a shared folder.
+
+## License
+
+[MIT](LICENSE)
