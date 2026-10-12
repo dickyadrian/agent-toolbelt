@@ -1,0 +1,19 @@
+{
+  "name": "context-gauge",
+  "version": "0.1.0",
+  "description": "How full the context window is, split into setup and chat, above the prompt once it passes a threshold",
+  "author": {
+    "name": "Dicky Adrian"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "threshold": {
+      "type": "number",
+      "title": "Threshold",
+      "description": "Percent of the way to autocompact at which the gauge appears",
+      "default": 50,
+      "min": 1,
+      "max": 100
+    }
+  }
+}
