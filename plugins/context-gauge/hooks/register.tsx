@@ -104,15 +104,16 @@ export const register: Register = (on, options) => {
     if (percent < threshold) return next(e)
 
     const below = await next(e)
+    const isAlone = isBlank(below)
     const { Box, Text } = $.ui.resolve(e)
     const urgency = urgencyOf(percent)
     const tone = toneProps(urgency)
     const fit = layout(shown, e.props.bodyColumns)
 
     return (
-      <Box key="gauge-stack" flexDirection="column" marginTop={isBlank(below) ? 1 : 0}>
+      <Box key="gauge-stack" flexDirection="column" marginTop={isAlone ? 1 : 0}>
         {below}
-        <Box key="gauge-row" flexDirection="row" columnGap={1}>
+        <Box key="gauge-row" flexDirection="row" columnGap={1} marginTop={isAlone ? 0 : 1}>
           <Text {...tone}>{LABEL}</Text>
           {fit.width > 0 && (
             <Box key="gauge-bar">

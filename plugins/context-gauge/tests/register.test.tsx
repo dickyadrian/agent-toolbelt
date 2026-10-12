@@ -287,11 +287,12 @@ describe('stacking', () => {
     for (const surface of SURFACES) {
       const ui = await band($, surface)
       expect((await ui.find({ key: 'gauge-stack' }))?.props).toMatchObject({ marginTop: 1 })
+      expect((await ui.find({ key: 'gauge-row' }))?.props).toMatchObject({ marginTop: 0 })
       await ui.unmount()
     }
   })
 
-  test('draws under a band beneath it, with no blank line of its own', async ($, on) => {
+  test('draws under a band beneath it, one blank line apart', async ($, on) => {
     const world = engine(on, { beneath: 'usage' })
     await start($)
     world.context = SIXTY
@@ -302,6 +303,7 @@ describe('stacking', () => {
       expect((await ui.find({ key: 'gauge-stack' }))?.text.startsWith('5h')).toBe(true)
       expect(await ui.find({ key: 'usage-band' })).toBeDefined()
       expect((await ui.find({ key: 'gauge-stack' }))?.props).toMatchObject({ marginTop: 0 })
+      expect((await ui.find({ key: 'gauge-row' }))?.props).toMatchObject({ marginTop: 1 })
       await ui.unmount()
     }
   })

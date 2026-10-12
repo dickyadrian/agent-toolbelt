@@ -15,7 +15,7 @@ How full the context window is, as one row above the prompt, once it passes a th
 
 ## Gotchas
 
-- **The band is shared.** `AbovePrompt` has one drawer. context-gauge draws `await next(e)` first and its row last. Its root (`gauge-stack`) carries `marginTop={1}` only when that tree is blank; the engine's own band (`type: 'engine'`) counts as blank. When usage-bar is outermost it strips the root margin of the tree it stacks, so the margin must stay on the root: on a child, usage-bar can't reach it and the rows get two blank lines. usage-bar's stacking test stubs this exact shape; keep the two in sync.
+- **The band is shared.** `AbovePrompt` has one drawer. context-gauge draws `await next(e)` first and its row last, one blank line apart. When that tree is blank (the engine's own band, `type: 'engine'`, counts as blank), the blank line moves to the root (`gauge-stack`) instead of the row, so the gauge alone still has one above it. When usage-bar is outermost it keeps the root margin of the tree it stacks as the gap between the bands, so that margin must stay on the root. usage-bar's stacking test stubs this exact shape; keep the two in sync.
 - **Threshold range:** `userConfig.threshold` declares 1-100. A hand-edited value outside that range makes the engine refuse to load the mod, naming the field.
 - **Tests find Boxes by key, not Texts.** Every element a test looks up by key is a Box (`gauge-stack`, `gauge-row`, `gauge-bar`).
 - **Compaction in tests needs a message.** The kit refuses a `session.compact` with empty `messages`, and each message needs `toolUses: []`.

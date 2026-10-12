@@ -30,7 +30,7 @@ Shows your subscription usage above the prompt, so you don't have to run `/usage
 - Bars turn yellow at 70% and red at 90%.
 - Once a window's reset time has passed, it shows 0% until the next reply brings fresh numbers.
 - `/usage-bar` hides or shows the band. Your choice is remembered across sessions.
-- Shares the band with other band mods, such as context-gauge: its rows come first, theirs under it.
+- Shares the band with other band mods, such as context-gauge: its rows come first, theirs under it, one blank line apart.
 - Optional account badge, for when you run more than one Claude Code config. Set it per config in the `env` block of that config's `settings.json`:
 
   ```json
@@ -165,7 +165,7 @@ ctx ▓▓████████████·····┃░░░░  62%  se
 - `▓` is setup (system prompt, tools, MCP, agents, skills, memory) and `█` is the conversation. `┃` marks where autocompact runs, and `░` is the reserve after it.
 - The label, marker and percent turn yellow at 80% and red at 90%.
 - On a narrow terminal it drops the setup/chat split first, then the tail, then shortens the bar.
-- With usage-bar installed, the context row sits under the usage row.
+- With usage-bar installed, the context row sits under the usage row, one blank line apart.
 - Follows the main conversation only; subagents don't move it.
 - `/context-gauge` hides or shows the row. Your choice is remembered across sessions.
 

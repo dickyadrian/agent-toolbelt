@@ -250,7 +250,7 @@ describe('account badge', () => {
 })
 
 describe('stacking', () => {
-  test('draws the band beneath under its rows, without its top margin', async ($, on) => {
+  test('draws the band beneath under its rows, keeping its top margin as the gap', async ($, on) => {
     engine(on, { beneath: 'gauge' })
     await start($)
     await measure($, [FIVE_HOUR])
@@ -258,7 +258,7 @@ describe('stacking', () => {
     for (const surface of SURFACES) {
       const ui = await band($, surface)
       expect((await ui.find({ key: 'gauge-row' }))?.text).toBe('ctx 62%')
-      expect((await ui.find({ key: 'gauge-stack' }))?.props.marginTop).toBeUndefined()
+      expect((await ui.find({ key: 'gauge-stack' }))?.props).toMatchObject({ marginTop: 1 })
       expect((await ui.find({ type: 'Box' }))?.props).toMatchObject({ marginTop: 1 })
       expect((await ui.find({ type: 'Box' }))?.text.startsWith('5h')).toBe(true)
       await ui.unmount()
