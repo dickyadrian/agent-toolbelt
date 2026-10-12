@@ -5,6 +5,7 @@ import type { Snapshot } from '../types'
 import {
   barRuns,
   fold,
+  isBlank,
   layout,
   percentOf,
   percentText,
@@ -200,6 +201,20 @@ describe('layout', () => {
     expect(layout(snap(), 25)).toEqual({ width: 16 })
     expect(layout(snap(), 19)).toEqual({ width: 10 })
     expect(layout(snap(), 18)).toEqual({ width: 0 })
+  })
+})
+
+describe('isBlank', () => {
+  test('a tree of empty Boxes and blank strings is blank', () => {
+    expect(isBlank({ type: 'Box', children: [{ type: 'Box' }, ' '] })).toBe(true)
+  })
+
+  test('the engine drawing its own band counts as blank', () => {
+    expect(isBlank({ type: 'engine', ref: 0 })).toBe(true)
+  })
+
+  test('any text makes a tree non-blank', () => {
+    expect(isBlank({ type: 'Box', children: [{ type: 'Text', children: ['5h'] }] })).toBe(false)
   })
 })
 

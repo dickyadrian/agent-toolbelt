@@ -36,9 +36,12 @@ const engine = (
   on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
 
+    // context-gauge's shape: the margin on the root, the row inside it.
     return options.beneath === 'gauge' ? (
-      <Box key="gauge-row" marginTop={1}>
-        <Text>ctx 62%</Text>
+      <Box key="gauge-stack" flexDirection="column" marginTop={1}>
+        <Box key="gauge-row">
+          <Text>ctx 62%</Text>
+        </Box>
       </Box>
     ) : (
       <Box key="engine-band" />
@@ -254,9 +257,8 @@ describe('stacking', () => {
 
     for (const surface of SURFACES) {
       const ui = await band($, surface)
-      const below = await ui.find({ key: 'gauge-row' })
-      expect(below?.text).toBe('ctx 62%')
-      expect(below?.props.marginTop).toBeUndefined()
+      expect((await ui.find({ key: 'gauge-row' }))?.text).toBe('ctx 62%')
+      expect((await ui.find({ key: 'gauge-stack' }))?.props.marginTop).toBeUndefined()
       expect((await ui.find({ type: 'Box' }))?.props).toMatchObject({ marginTop: 1 })
       expect((await ui.find({ type: 'Box' }))?.text.startsWith('5h')).toBe(true)
       await ui.unmount()
@@ -269,7 +271,7 @@ describe('stacking', () => {
 
     for (const surface of SURFACES) {
       const ui = await band($, surface)
-      expect((await ui.find({ key: 'gauge-row' }))?.props).toMatchObject({ marginTop: 1 })
+      expect((await ui.find({ key: 'gauge-stack' }))?.props).toMatchObject({ marginTop: 1 })
       await ui.unmount()
     }
   })

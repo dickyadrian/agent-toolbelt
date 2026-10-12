@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, RenderNode } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
-import { barRuns, fold, LABEL, layout, percentOf, percentText, toneProps, urgencyOf } from './format'
+import { barRuns, fold, isBlank, LABEL, layout, percentOf, percentText, toneProps, urgencyOf } from './format'
 
 const snapshot = atom({ plugin: 'context-gauge', key: 'snapshot' } as const, null)
 const isHidden = atom({ plugin: 'context-gauge', key: 'isHidden' } as const, false)
@@ -38,12 +38,16 @@ const refresh = async ($: EngineInterface, refreshes: Refreshes) => {
   }
 }
 
-/** Whether a tree draws nothing: no non-blank string anywhere in it. */
-const isBlank = (node: RenderNode): boolean => {
-  if (typeof node === 'string') return node.trim() === ''
-  if (node.type !== 'Box' && node.type !== 'Text') return false
-
-  return (node.children ?? []).every(isBlank)
+/**
+ * Clears the snapshot without reading usage: a compaction leaves the live
+ * window with no response until the next one, and inside the compaction's
+ * chain the engine may still report the old fill. Counts as the newest
+ * refresh, so an older read resolving late can't bring the row back.
+ */
+const clearSnapshot = async ($: EngineInterface, refreshes: Refreshes) => {
+  refreshes.started += 1
+  refreshes.written = refreshes.started
+  await update($, snapshot, () => null)
 }
 
 export const register: Register = (on, options) => {
@@ -79,7 +83,7 @@ export const register: Register = (on, options) => {
   on('session.compact', async ($, e, next) => {
     const result = await next(e)
     if (e.agentId === undefined && e.trigger !== 'precompute' && result.messages !== undefined) {
-      await refresh($, refreshes)
+      await clearSnapshot($, refreshes)
     }
 
     return result
@@ -106,9 +110,9 @@ export const register: Register = (on, options) => {
     const fit = layout(shown, e.props.bodyColumns)
 
     return (
-      <Box key="gauge-stack" flexDirection="column">
+      <Box key="gauge-stack" flexDirection="column" marginTop={isBlank(below) ? 1 : 0}>
         {below}
-        <Box key="gauge-row" flexDirection="row" columnGap={1} marginTop={isBlank(below) ? 1 : 0}>
+        <Box key="gauge-row" flexDirection="row" columnGap={1}>
           <Text {...tone}>{LABEL}</Text>
           {fit.width > 0 && (
             <Box key="gauge-bar">

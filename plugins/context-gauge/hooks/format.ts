@@ -1,4 +1,4 @@
-import type { SessionContextBreakdown, ThemeKey } from 'claude-code'
+import type { RenderNode, SessionContextBreakdown, ThemeKey } from 'claude-code'
 
 import type { Snapshot } from '../types'
 
@@ -141,6 +141,19 @@ export const layout = (s: Snapshot, columns: number): Layout => {
   }
 
   return { width: 0 }
+}
+
+/**
+ * Whether a tree draws nothing: no non-blank string anywhere in it. The
+ * engine's own band (`type: 'engine'`) counts as blank: without a survey,
+ * which the gauge yields to anyway, it draws nothing.
+ */
+export const isBlank = (node: RenderNode): boolean => {
+  if (typeof node === 'string') return node.trim() === ''
+  if (node.type === 'engine') return true
+  if (node.type !== 'Box' && node.type !== 'Text') return false
+
+  return (node.children ?? []).every(isBlank)
 }
 
 /** The Text props a tone draws with. */

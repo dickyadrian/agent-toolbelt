@@ -203,7 +203,7 @@ describe('band', () => {
     await start($)
     world.context = SIXTY
     await measure($)
-    world.context = FRESH
+    // The engine may still report the old fill inside the compaction chain.
     await $.session.compact({ trigger: 'manual', messages: SUMMARY })
 
     expect(await rows($)).toEqual([undefined, undefined])
@@ -286,7 +286,7 @@ describe('stacking', () => {
 
     for (const surface of SURFACES) {
       const ui = await band($, surface)
-      expect((await ui.find({ key: 'gauge-row' }))?.props).toMatchObject({ marginTop: 1 })
+      expect((await ui.find({ key: 'gauge-stack' }))?.props).toMatchObject({ marginTop: 1 })
       await ui.unmount()
     }
   })
@@ -301,7 +301,7 @@ describe('stacking', () => {
       const ui = await band($, surface)
       expect((await ui.find({ key: 'gauge-stack' }))?.text.startsWith('5h')).toBe(true)
       expect(await ui.find({ key: 'usage-band' })).toBeDefined()
-      expect((await ui.find({ key: 'gauge-row' }))?.props).toMatchObject({ marginTop: 0 })
+      expect((await ui.find({ key: 'gauge-stack' }))?.props).toMatchObject({ marginTop: 0 })
       await ui.unmount()
     }
   })
