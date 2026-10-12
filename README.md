@@ -1,3 +1,5 @@
+![agent-toolbelt: tools, scripts and utilities for building with AI agents](assets/banner.webp)
+
 # agent-toolbelt
 
 Mods for [Claude Code](https://claude.com/claude-code), published as a plugin marketplace. Each mod lives in its own folder under `plugins/` and installs on its own.
