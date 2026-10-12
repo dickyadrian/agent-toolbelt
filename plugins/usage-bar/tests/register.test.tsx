@@ -21,6 +21,7 @@ const engine = (
     rateLimits?: SessionRateLimit[]
     store?: Record<string, unknown>
     env?: Record<string, string>
+    beneath?: 'blank' | 'gauge'
   } = {},
 ) => {
   mock.clock(on, { now: NOW })
@@ -33,9 +34,15 @@ const engine = (
   on('session.measure', ($, e) => ({ changed: e.changed }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
-    const { Box } = $.ui.resolve(e)
+    const { Box, Text } = $.ui.resolve(e)
 
-    return <Box key="engine-band" />
+    return options.beneath === 'gauge' ? (
+      <Box key="gauge-row" marginTop={1}>
+        <Text>ctx 62%</Text>
+      </Box>
+    ) : (
+      <Box key="engine-band" />
+    )
   })
 }
 
@@ -79,7 +86,7 @@ describe('band', () => {
 
     for (const surface of SURFACES) {
       const ui = await band($, surface)
-      expect(await ui.find({ key: 'engine-band' })).toBeUndefined()
+      expect(await ui.find({ key: 'engine-band' })).toBeDefined()
       expect(await ui.find({ key: 'row-0' })).toBeDefined()
       expect(await ui.find({ key: 'row-1' })).toBeUndefined()
       const fiveHour = (await ui.find({ key: 'segment-five_hour' }))?.text
@@ -134,6 +141,7 @@ describe('band', () => {
     for (const surface of SURFACES) {
       const ui = await band($, surface)
       expect(await ui.find({ key: 'engine-band' })).toBeDefined()
+      expect(await ui.find({ key: 'segment-five_hour' })).toBeUndefined()
       await ui.unmount()
     }
   })
@@ -146,6 +154,7 @@ describe('band', () => {
     for (const surface of SURFACES) {
       const ui = await band($, surface, { hasSurvey: true })
       expect(await ui.find({ key: 'engine-band' })).toBeDefined()
+      expect(await ui.find({ key: 'segment-five_hour' })).toBeUndefined()
       await ui.unmount()
     }
   })
@@ -161,6 +170,7 @@ describe('/usage-bar', () => {
     for (const surface of SURFACES) {
       const ui = await band($, surface)
       expect(await ui.find({ key: 'engine-band' })).toBeDefined()
+      expect(await ui.find({ key: 'segment-five_hour' })).toBeUndefined()
       await ui.unmount()
     }
 
@@ -180,6 +190,7 @@ describe('/usage-bar', () => {
     for (const surface of SURFACES) {
       const ui = await band($, surface)
       expect(await ui.find({ key: 'engine-band' })).toBeDefined()
+      expect(await ui.find({ key: 'segment-five_hour' })).toBeUndefined()
       await ui.unmount()
     }
   })
@@ -231,6 +242,35 @@ describe('account badge', () => {
       const narrow = await band($, surface, { bodyColumns: 85 })
       expect(await narrow.find({ key: 'row-1' })).toBeDefined()
       await narrow.unmount()
+    }
+  })
+})
+
+describe('stacking', () => {
+  test('draws the band beneath under its rows, without its top margin', async ($, on) => {
+    engine(on, { beneath: 'gauge' })
+    await start($)
+    await measure($, [FIVE_HOUR])
+
+    for (const surface of SURFACES) {
+      const ui = await band($, surface)
+      const below = await ui.find({ key: 'gauge-row' })
+      expect(below?.text).toBe('ctx 62%')
+      expect(below?.props.marginTop).toBeUndefined()
+      expect((await ui.find({ type: 'Box' }))?.props).toMatchObject({ marginTop: 1 })
+      expect((await ui.find({ type: 'Box' }))?.text.startsWith('5h')).toBe(true)
+      await ui.unmount()
+    }
+  })
+
+  test('leaves the band beneath as it is while hidden', async ($, on) => {
+    engine(on, { beneath: 'gauge' })
+    await start($)
+
+    for (const surface of SURFACES) {
+      const ui = await band($, surface)
+      expect((await ui.find({ key: 'gauge-row' }))?.props).toMatchObject({ marginTop: 1 })
+      await ui.unmount()
     }
   })
 })

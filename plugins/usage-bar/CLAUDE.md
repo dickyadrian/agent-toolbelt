@@ -13,5 +13,5 @@ The 5h and 7d subscription windows as bars in the band above the prompt. `hooks/
 
 ## Gotchas
 
-- **The band hides other bands.** While the band shows, the hook returns its own tree without calling `next(e)`, so any `AbovePrompt` band from a plugin beneath it is hidden. If another band mod is added, compose with `next(e)` instead of replacing it.
+- **The band is shared.** `AbovePrompt` has one drawer, so band mods compose `await next(e)`. usage-bar draws its rows first and the tree beneath after them, with that tree's root `marginTop` removed: usage-bar's own margin keeps the one blank line. context-gauge draws the tree beneath first and its row last, so the order on screen is the same whichever loads outermost.
 - **Time-zone-independent tests.** The tests build dates with local-time constructors, never ISO strings, so they pass in any time zone; keep new tests that way.

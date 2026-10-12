@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { Register, RenderElement } from 'claude-code'
 
 import type { UsageWindow } from '../types'
 import { BADGE_GAP, badgeOf, badgeWidth, layout, SEGMENT_GAP } from './format'
@@ -15,6 +15,17 @@ const toWindows = (limits: readonly UsageWindow[]): UsageWindow[] =>
   limits.map(({ kind, percentUsed, resetsAt }) =>
     resetsAt === undefined ? { kind, percentUsed } : { kind, percentUsed, resetsAt },
   )
+
+/**
+ * The band beneath, minus its top margin: this band's own margin already
+ * keeps the blank line above both.
+ */
+const withoutTopMargin = (node: RenderElement): RenderElement => {
+  if ((node.type !== 'Box' && node.type !== 'Text') || node.props?.marginTop === undefined) return node
+  const { marginTop: _, ...props } = node.props
+
+  return { ...node, props }
+}
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -55,33 +66,37 @@ export const register: Register = on => {
       return next(e)
     }
 
+    const below = withoutTopMargin(await next(e))
     const { Box, Text } = $.ui.resolve(e)
     const account = await read($, badge)
     const columns = e.props.bodyColumns - badgeWidth(account)
     const rows = layout(shown, columns, await $.clock.now())
 
     return (
-      <Box flexDirection="row" columnGap={BADGE_GAP} marginTop={1}>
-        {account !== null && (
-          <Box key="badge">
-            <Text inverse color={account.color}>{` ${account.text} `}</Text>
-          </Box>
-        )}
-        <Box flexDirection="column">
-          {rows.map((row, index) => (
-            <Box key={`row-${index}`} flexDirection="row" columnGap={SEGMENT_GAP}>
-              {row.map(segment => (
-                <Box key={`segment-${segment.kind}`} columnGap={1}>
-                  <Text dimColor>{segment.label}</Text>
-                  <Text color={segment.color}>{segment.bar}</Text>
-                  <Text color={segment.color}>{segment.percent}</Text>
-                  {segment.reset !== undefined && <Text dimColor>{` resets ${segment.reset}`}</Text>}
-                </Box>
-              ))}
+      <Box flexDirection="column" marginTop={1}>
+        <Box flexDirection="row" columnGap={BADGE_GAP}>
+          {account !== null && (
+            <Box key="badge">
+              <Text inverse color={account.color}>{` ${account.text} `}</Text>
             </Box>
-          ))}
+          )}
+          <Box flexDirection="column">
+            {rows.map((row, index) => (
+              <Box key={`row-${index}`} flexDirection="row" columnGap={SEGMENT_GAP}>
+                {row.map(segment => (
+                  <Box key={`segment-${segment.kind}`} columnGap={1}>
+                    <Text dimColor>{segment.label}</Text>
+                    <Text color={segment.color}>{segment.bar}</Text>
+                    <Text color={segment.color}>{segment.percent}</Text>
+                    {segment.reset !== undefined && <Text dimColor>{` resets ${segment.reset}`}</Text>}
+                  </Box>
+                ))}
+              </Box>
+            ))}
+          </Box>
         </Box>
+        {below}
       </Box>
     )
-  })
+  }).catch(($, e, next) => next(e))
 }
