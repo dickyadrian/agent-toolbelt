@@ -1,0 +1,9 @@
+{
+  "name": "notion-scope",
+  "version": "0.1.0",
+  "description": "Limits Notion MCP calls to the pages a project allows, from an allowlist that never gets committed",
+  "author": {
+    "name": "Dicky Adrian"
+  },
+  "types": "./types/index.d.ts"
+}
