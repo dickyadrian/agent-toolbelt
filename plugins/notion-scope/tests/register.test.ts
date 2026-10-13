@@ -247,3 +247,93 @@ describe('created pages', () => {
     expect(world.files.get(FILE)).toBe(`${PAGE}\n`)
   })
 })
+
+describe('/notion-scope', () => {
+  const run = async ($: Engine, args = '') =>
+    (
+      await $.command.run({
+        command: 'notion-scope',
+        args,
+        origin: { kind: 'composer' },
+        presentation: { isFullscreen: false, columns: 120 },
+      })
+    ).text ?? ''
+  const EXCLUDE = `${REPO}/.git/info/exclude`
+
+  test('says the guard is off when there is no allowlist', async ($, on) => {
+    engine(on)
+    await start($)
+
+    expect(await run($)).toContain('off in this project')
+  })
+
+  test('lists the allowlist when the guard is on', async ($, on) => {
+    engine(on, { files: { [FILE]: `# scope\n${PAGE}  # Exploration\n` }, ignoreExit: 0 })
+    await start($)
+    const text = await run($)
+
+    expect(text).toContain('on in this project')
+    expect(text).toContain(`${PAGE}  # Exploration`)
+    expect(text).not.toContain('git would commit')
+  })
+
+  test('warns when git would commit the allowlist', async ($, on) => {
+    engine(on, { files: { [FILE]: `${PAGE}\n` }, ignoreExit: 1 })
+    await start($)
+
+    expect(await run($)).toContain('git would commit')
+  })
+
+  test('add creates the file with a header and excludes it from git', async ($, on) => {
+    const world = engine(on, { files: { [EXCLUDE]: '# git ls-files --others --exclude-from=.git/info/exclude\n' } })
+    await start($)
+    const text = await run($, `add https://www.notion.so/Research-${OTHER} Research`)
+
+    expect(world.files.get(FILE)).toBe(`# Notion pages Claude may touch in this project: one id or URL per line, # for comments.\n${OTHER}  # Research\n`)
+    expect(world.files.get(EXCLUDE)).toBe('# git ls-files --others --exclude-from=.git/info/exclude\n/.claude/notion-scope.local.txt\n')
+    expect(text).toContain('.git/info/exclude')
+  })
+
+  test('add to an existing file appends without touching git', async ($, on) => {
+    const world = engine(on, { files: { [FILE]: `${PAGE}\n` } })
+    await start($)
+    await run($, `add ${OTHER}`)
+
+    expect(world.files.get(FILE)).toBe(`${PAGE}\n${OTHER}\n`)
+    expect(world.files.has(EXCLUDE)).toBe(false)
+  })
+
+  test('add skips the exclude when git already ignores the file', async ($, on) => {
+    const world = engine(on, { ignoreExit: 0 })
+    await start($)
+    await run($, `add ${OTHER}`)
+
+    expect(world.files.has(FILE)).toBe(true)
+    expect(world.files.has(EXCLUDE)).toBe(false)
+  })
+
+  test('add outside a git repo writes the file and no exclude', async ($, on) => {
+    const world = engine(on, { isRepo: false })
+    await start($)
+    const text = await run($, `add ${OTHER}`)
+
+    expect(world.files.get(FILE)).toContain(OTHER)
+    expect([...world.files.keys()].some(path => path.endsWith('/info/exclude'))).toBe(false)
+    expect(text).not.toContain('.git/info/exclude')
+  })
+
+  test('add of an id already listed says so and writes nothing', async ($, on) => {
+    const world = engine(on, { files: { [FILE]: `${PAGE}\n` } })
+    await start($)
+
+    expect(await run($, `add ${PAGE}`)).toContain('already allowed')
+    expect(world.files.get(FILE)).toBe(`${PAGE}\n`)
+  })
+
+  test('add without an id explains what it takes', async ($, on) => {
+    engine(on)
+    await start($)
+
+    expect(await run($, 'add Research')).toContain('Usage: /notion-scope add <url|id> [label]')
+  })
+})
