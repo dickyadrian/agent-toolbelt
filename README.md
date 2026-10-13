@@ -197,7 +197,8 @@ Keeps Claude to the Notion pages a project is about, instead of searching and re
 ```
 
 - Each project lists its pages in `.claude/notion-scope.local.txt`: one id or Notion URL per line, `#` for comments. Edits apply on the next call.
-- A Notion call that names a page outside the list is refused, and so is one that names no page at all (search, list), since those reach the whole workspace. Claude is told why and how to ask you for more.
+- A Notion call that names a page outside the list is refused, and so is one that names no page at all (search, list), since those reach the whole workspace. Claude is told why, which pages it can use, and how to ask you for more.
+- Worktrees of the repo share the main checkout's list.
 - Pages are matched exactly: a child page needs its own line.
 - Pages Claude creates under an allowed page are added to the list for you, marked `# created by Claude <date>`.
 - No list, no guard: Notion calls go through and the first one in a session shows a toast saying so. Projects that never use Notion never see it.

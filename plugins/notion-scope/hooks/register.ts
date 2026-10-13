@@ -1,6 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { atom, update } from 'claude-code'
 import {
+  allowedPages,
   ALLOWLIST,
   appendLines,
   argumentsText,
@@ -26,15 +27,25 @@ const minted = atom({ plugin: 'notion-scope', key: 'minted' } as const, [] as re
 /** Per load: the project root found for each cwd. */
 export type Scope = { rootByCwd: Map<string, string> }
 
-/** The git top level of the session's cwd, cached; the cwd itself outside a repo. */
+/**
+ * The main working tree of the session's cwd, cached: a linked worktree has no
+ * copy of the git-excluded allowlist, so it shares the main tree's. The git
+ * top level when the common dir isn't a `.git` folder; the cwd outside a repo.
+ */
 export const rootOf = async ($: EngineInterface, scope: Scope): Promise<string> => {
   const cwd = await $.session.cwd()
   const known = scope.rootByCwd.get(cwd)
   if (known !== undefined) return known
   let root = cwd
   try {
-    const top = await $.process.run(['git', 'rev-parse', '--show-toplevel'], { cwd, timeoutMs: 5000 })
-    if (top.exitCode === 0 && top.stdout.trim() !== '') root = top.stdout.trim()
+    const common = await $.process.run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd, timeoutMs: 5000 })
+    const gitDir = common.stdout.trim()
+    if (common.exitCode === 0 && gitDir.endsWith('/.git')) {
+      root = gitDir.slice(0, -'/.git'.length)
+    } else {
+      const top = await $.process.run(['git', 'rev-parse', '--show-toplevel'], { cwd, timeoutMs: 5000 })
+      if (top.exitCode === 0 && top.stdout.trim() !== '') root = top.stdout.trim()
+    }
   } catch {
     // no git: the cwd is the project
   }
@@ -143,7 +154,7 @@ export const register: Register = on => {
     const session = (await $.state.get({ plugin: 'notion-scope', key: 'minted' })).value ?? []
     const allowed = new Set([...parseAllowlist(text), ...session])
     const reason = decide(e.tool, extractIds(argumentsText(e)), allowed)
-    if (reason !== undefined) return { deny: reason }
+    if (reason !== undefined) return { deny: `${reason} ${allowedPages(text)}` }
 
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError === true || ran.text === undefined) return ran

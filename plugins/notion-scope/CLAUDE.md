@@ -5,6 +5,8 @@ Limits Notion MCP calls to the page ids in a per-project allowlist. `hooks/scope
 ## Behaviour that is deliberate
 
 - **Fails closed.** The guard's `.catch` denies when the check threw before `next`. This breaks the repo's "gating hooks pass through on failure" rule on purpose: a scope guard that fails open does nothing. After `next` it passes the engine's answer through as usual.
+- **One allowlist per clone.** The project root is the main working tree (`--git-common-dir` without its `/.git`), so a linked worktree, which never gets a copy of the git-excluded file, shares the main tree's. Outside git it is the cwd.
+- **Denies list the allowed pages** with their trailing `# label`s, so Claude can pick one instead of dead-ending. They never name the file, so they don't invite Claude to edit it.
 - **No file, no guard.** Without `.claude/notion-scope.local.txt` every Notion call goes through, with one toast per session (`isWarned` in `$.state`). A file holding only comments is on and denies everything.
 - **Matcher.** `/^mcp__(?:(?!__).)*notion(?:(?!__).)*__/i`: the server part may hold single underscores (`claude_ai_Notion`). A `[^_]*` form misses the claude.ai connector; a test pins both spellings.
 - **Exact ids.** No child pages. `user://` ids (mentions) and `v=` ids (database views) are not pages and are skipped.

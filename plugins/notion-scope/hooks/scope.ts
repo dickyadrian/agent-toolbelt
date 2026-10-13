@@ -41,6 +41,17 @@ export const extractIds = (text: string): string[] => [...new Set(Array.from(tex
 export const parseAllowlist = (text: string): Set<string> =>
   new Set(text.split('\n').flatMap(line => extractIds(line.replace(/(^|\s)#.*$/, ''))))
 
+/** The allowed ids with their labels, for a deny, so Claude can pick an allowed page. */
+export const allowedPages = (text: string): string => {
+  const entries = text.split('\n').flatMap(line => {
+    const [, body = '', label = ''] = /^(.*?)(?:(?:^|\s)#\s*(.*))?$/.exec(line) ?? []
+
+    return extractIds(body).map(id => (label.trim() === '' ? id : `${id} (${label.trim()})`))
+  })
+
+  return entries.length === 0 ? 'No pages are allowed yet.' : `Allowed pages: ${[...new Set(entries)].join(', ')}.`
+}
+
 /** `mcp__claude_ai_Notion__notion-fetch` is `notion-fetch`. */
 export const toolNameOf = (tool: string): string => tool.slice(tool.lastIndexOf('__') + 2)
 

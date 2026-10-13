@@ -18,11 +18,13 @@ type World = {
   /** `git check-ignore` exit code: 0 ignored, 1 not ignored, 128 not a repo. */
   ignoreExit: number
   isRepo: boolean
+  /** The session's cwd: the repo itself, or a linked worktree of it. */
+  cwd: string
   readFails: boolean
 }
 
 /** Stands in for the engine beneath the plugin: session, disk, git, toasts and the Notion server. */
-const engine = (on: On, options: Partial<Pick<World, 'ignoreExit' | 'isRepo'>> & { files?: Record<string, string> } = {}): World => {
+const engine = (on: On, options: Partial<Pick<World, 'ignoreExit' | 'isRepo' | 'cwd'>> & { files?: Record<string, string> } = {}): World => {
   const world: World = {
     files: new Map(Object.entries(options.files ?? {})),
     toasts: [],
@@ -31,10 +33,11 @@ const engine = (on: On, options: Partial<Pick<World, 'ignoreExit' | 'isRepo'>> &
     ignoreExit: options.ignoreExit ?? 1,
     isRepo: options.isRepo ?? true,
     readFails: false,
+    cwd: options.cwd ?? REPO,
   }
   mock.clock(on, { now: new Date(2026, 9, 13, 10, 0).getTime() })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
-  on('session.cwd', () => ({ value: REPO }))
+  on('session.cwd', () => ({ value: world.cwd }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('ui.toast', ($, e) => {
     world.toasts.push(e.text)
@@ -60,7 +63,8 @@ const engine = (on: On, options: Partial<Pick<World, 'ignoreExit' | 'isRepo'>> &
       value: { exitCode, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
     })
     if (!world.isRepo) return result(128)
-    if (argv.includes('--show-toplevel')) return result(0, `${REPO}\n`)
+    // a linked worktree's top level is its own folder; its common dir is the main tree's .git
+    if (argv.includes('--show-toplevel')) return result(0, `${world.cwd}\n`)
     if (argv.includes('--git-common-dir')) return result(0, `${REPO}/.git\n`)
     if (argv[1] === 'check-ignore') return result(world.ignoreExit)
 
@@ -165,6 +169,24 @@ describe('with an allowlist', () => {
     world.files.set(FILE, `${PAGE}\n${OTHER}\n`)
 
     expect(isDenied(await call($, 'mcp__notion__notion-fetch', { id: OTHER }))).toBe(false)
+  })
+
+  test('a session in a linked worktree uses the main tree\'s allowlist', async ($, on) => {
+    engine(on, { files, cwd: `${REPO}-worktrees/feature` })
+    await start($)
+
+    expect(isDenied(await call($, 'mcp__notion__notion-search', { query: 'x' }))).toBe(true)
+    expect(isDenied(await call($, 'mcp__notion__notion-fetch', { id: PAGE }))).toBe(false)
+  })
+
+  test('a deny lists the allowed pages with their labels', async ($, on) => {
+    engine(on, { files: { [FILE]: `# scope\n${PAGE}  # Exploration\n${NEW}\n` } })
+    await start($)
+    const search = await call($, 'mcp__notion__notion-search', { query: 'x' })
+    const fetch = await call($, 'mcp__notion__notion-fetch', { id: OTHER })
+
+    expect(search.deny).toContain(`Allowed pages: ${PAGE} (Exploration), ${NEW}.`)
+    expect(fetch.deny).toContain(`Allowed pages: ${PAGE} (Exploration), ${NEW}.`)
   })
 
   test('an allowlist with only comments is on and denies everything', async ($, on) => {

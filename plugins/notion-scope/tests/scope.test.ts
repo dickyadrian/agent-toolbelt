@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import {
+  allowedPages,
   appendLines,
   argumentsText,
   createdIds,
@@ -56,6 +57,16 @@ describe('parseAllowlist', () => {
 
   test('an empty file allows nothing', () => {
     expect(parseAllowlist('').size).toBe(0)
+  })
+})
+
+describe('allowedPages', () => {
+  test('lists ids with their trailing labels, ignoring comment lines', () => {
+    expect(allowedPages(`# scope\n${PAGE}  # Exploration\n${OTHER}\n`)).toBe(`Allowed pages: ${PAGE} (Exploration), ${OTHER}.`)
+  })
+
+  test('says when nothing is allowed yet', () => {
+    expect(allowedPages('# nothing yet\n')).toBe('No pages are allowed yet.')
   })
 })
 
