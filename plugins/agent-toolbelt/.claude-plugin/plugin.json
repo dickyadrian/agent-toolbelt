@@ -1,0 +1,16 @@
+{
+  "name": "agent-toolbelt",
+  "version": "0.1.0",
+  "description": "Installs every agent-toolbelt mod in one go",
+  "author": {
+    "name": "Dicky Adrian"
+  },
+  "dependencies": [
+    "usage-bar",
+    "model-router",
+    "subagent-pane",
+    "standup",
+    "context-gauge",
+    "notion-scope"
+  ]
+}

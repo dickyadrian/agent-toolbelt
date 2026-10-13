@@ -8,7 +8,7 @@ Claude Code mods (function-hooks plugins), one per folder under `plugins/`, each
 - Each mod is self-contained: an install copies only its folder, so code is shared by copying, never by importing across `plugins/`.
 - Design specs and plans live in `docs/superpowers/`, which is gitignored. They name paths on the author's machine.
 - The author's configs load mods straight from this checkout (`CLAUDE_CODE_PLUGIN_DIRS`), so every commit on `main` must load: run `claude plugin validate` and `claude plugin test` on each mod you touch.
-- A new mod also gets a `plugins` entry in `.claude-plugin/marketplace.json`, a README section and a line in the README's `## Install` block.
+- A new mod also gets a `plugins` entry in `.claude-plugin/marketplace.json`, a README section, and its name in the `agent-toolbelt` bundle's `dependencies` (bump the bundle's `version`). The bundle, `plugins/agent-toolbelt/`, is an empty plugin that installs every mod; it has no hooks to test.
 
 ## Engine gotchas
 

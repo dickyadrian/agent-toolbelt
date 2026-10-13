@@ -6,18 +6,22 @@ Mods for [Claude Code](https://claude.com/claude-code), published as a plugin ma
 
 ## Install
 
-Install every mod:
+Install every mod with one command:
 
 ```
-/plugin install usage-bar --marketplace dickyadrian/agent-toolbelt
-/plugin install model-router --marketplace dickyadrian/agent-toolbelt
-/plugin install subagent-pane --marketplace dickyadrian/agent-toolbelt
-/plugin install standup --marketplace dickyadrian/agent-toolbelt
-/plugin install context-gauge --marketplace dickyadrian/agent-toolbelt
-/plugin install notion-scope --marketplace dickyadrian/agent-toolbelt
+/plugin install agent-toolbelt --marketplace dickyadrian/agent-toolbelt
 ```
 
-The first command asks to add the marketplace: answer `y`. Each install then asks for a scope. To pick only some mods, run just their lines. Each mod's section below has its own command too.
+Answer `y` to add the marketplace, then pick a scope. `agent-toolbelt` is an empty bundle that lists every mod as a dependency, so they all install with it.
+
+To remove them all, uninstall the bundle and then prune the mods it pulled in:
+
+```
+claude plugin uninstall agent-toolbelt@agent-toolbelt
+claude plugin prune
+```
+
+To pick only some mods, install them one at a time instead. Each mod's section below has its command.
 
 ## Mods
 
@@ -232,7 +236,8 @@ claude plugin test ./plugins/usage-bar
 
 1. Create `plugins/<name>/` with `.claude-plugin/plugin.json`, `hooks/hooks.json` and the hooks module.
 2. Add an entry to `plugins` in `.claude-plugin/marketplace.json`.
-3. Add a section to this README.
+3. Add its name to `dependencies` in `plugins/agent-toolbelt/.claude-plugin/plugin.json` and bump the bundle's `version`.
+4. Add a section to this README.
 
 Each mod has to be self-contained. An install copies only that mod's folder, so a mod can't import code from another mod or from a shared folder.
 
