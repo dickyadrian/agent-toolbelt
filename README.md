@@ -14,6 +14,7 @@ Install every mod:
 /plugin install subagent-pane --marketplace dickyadrian/agent-toolbelt
 /plugin install standup --marketplace dickyadrian/agent-toolbelt
 /plugin install context-gauge --marketplace dickyadrian/agent-toolbelt
+/plugin install notion-scope --marketplace dickyadrian/agent-toolbelt
 ```
 
 The first command asks to add the marketplace: answer `y`. Each install then asks for a scope. To pick only some mods, run just their lines. Each mod's section below has its own command too.
@@ -185,6 +186,30 @@ Install:
 
 ```
 /plugin install context-gauge --marketplace dickyadrian/agent-toolbelt
+```
+
+### notion-scope
+
+Keeps Claude to the Notion pages a project is about, instead of searching and reading across your whole workspace.
+
+```
+/notion-scope add https://www.notion.so/Agentic-Observability-Research-3e299635e866809dadb2d84aa544ac43 Research
+```
+
+- Each project lists its pages in `.claude/notion-scope.local.txt`: one id or Notion URL per line, `#` for comments. Edits apply on the next call.
+- A Notion call that names a page outside the list is refused, and so is one that names no page at all (search, list), since those reach the whole workspace. Claude is told why and how to ask you for more.
+- Pages are matched exactly: a child page needs its own line.
+- Pages Claude creates under an allowed page are added to the list for you, marked `# created by Claude <date>`.
+- No list, no guard: Notion calls go through and the first one in a session shows a toast saying so. Projects that never use Notion never see it.
+- The list is yours, not the repo's. `/notion-scope add` adds it to `.git/info/exclude` when it creates it, which is never committed. `/notion-scope` shows the list and warns if git would commit it.
+- Works with the claude.ai Notion connector and with a Notion MCP server you added yourself.
+
+This narrows what Claude asks Notion for. It isn't a security boundary: Notion's own permissions still decide what your account can reach.
+
+Install:
+
+```
+/plugin install notion-scope --marketplace dickyadrian/agent-toolbelt
 ```
 
 ## Developing

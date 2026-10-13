@@ -31,6 +31,11 @@
       "name": "context-gauge",
       "source": "./plugins/context-gauge",
       "description": "How full the context window is, split into setup and chat, above the prompt once it passes a threshold"
+    },
+    {
+      "name": "notion-scope",
+      "source": "./plugins/notion-scope",
+      "description": "Limits Notion MCP calls to the pages a project allows, from an allowlist that never gets committed"
     }
   ]
 }
